@@ -1,5 +1,5 @@
-source /home/angelboy/peda/peda.py
-source /home/angelboy/pwngdbx86.py
+source ${HOME}/peda/peda.py
+source ${HOME}/pwngdb.py
 
 define libc
 	python putlibc()
