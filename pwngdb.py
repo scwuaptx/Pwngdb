@@ -18,9 +18,9 @@ free_off_32 = 0x73880 # You need to modify it
 last_remainder = {}
 fastbinsize = 10
 fastbin = []
-freememoryarea = {}
+freememoryarea = {} #using in parse
 allocmemoryarea = {}
-freerecord = {}
+freerecord = {} # using in trace
 unsortbin = []
 smallbin = {}  #{size:bin}
 largebin = {}
@@ -28,7 +28,7 @@ tracemode = False
 tracelargebin = True
 mallocbp = None
 freebp = None
-DEBUG = False  #debug msg (free and malloc)if you want
+DEBUG = False  #debug msg (free and malloc) if you want
 
 class Malloc_bp_ret(gdb.FinishBreakpoint):
     global allocmemoryarea
@@ -81,6 +81,8 @@ class Malloc_bp_ret(gdb.FinishBreakpoint):
                 splitchunk["addr"] = chunk["addr"] + chunk["size"]
                 splitchunk["size"] = freechunk["size"] - chunk["size"]
                 freerecord[hex(splitchunk["addr"])] = copy.deepcopy((splitchunk["addr"],splitchunk["addr"]+splitchunk["size"],splitchunk))
+        if self.arg >= 128*ptrsize :
+            Malloc_consolidate()
 
 class Malloc_Bp_handler(gdb.Breakpoint):
     def stop(self):
@@ -207,7 +209,25 @@ class Free_Bp_handler(gdb.Breakpoint):
         freerecord[hex(chunk["addr"])] = copy.deepcopy((chunk["addr"],chunk["addr"]+chunk["size"],chunk))
         if hex(chunk["addr"]) in allocmemoryarea :
             del allocmemoryarea[hex(chunk["addr"])]
+        if chunk["size"] > 65536 :
+            Malloc_consolidate()
         return False
+
+
+def Malloc_consolidate(): #merge fastbin when malloc a large chunk or free a very large chunk
+    global fastbin
+    global freerecord
+    get_heap_info()
+    arch = getarch()
+    if arch == "x86-64":
+        ptrsize = 8
+        word = "gx "
+    else :
+        ptrsize = 4
+        word = "wx "
+    freerecord = {}
+    get_heap_info()
+    freerecord = copy.deepcopy(freememoryarea) 
 
 
 def getarch():
