@@ -322,7 +322,13 @@ def findsyscall():
 def gettls():
     arch = getarch()
     if arch == "i386" :
-        tlsaddr = libcbase() - 0x1000 + 0x700
+        vsysaddr = gdb.execute("info functions __kernel_vsyscall",to_string=True).split("\n")[-2].split()[0].strip()
+        sysinfo= gdb.execute("find " + vsysaddr,to_string=True).split("\n")[2]
+        match = re.search(r"0x[0-9a-z]{8}",sysinfo)
+        if match :
+            tlsaddr = int(match.group(),16) - 0x10
+        else:
+            return "error"
         return tlsaddr
     elif arch == "x86-64" :
         gdb.execute("call arch_prctl(0x1003,$rsp-8)")
@@ -617,7 +623,7 @@ def trace_normal_bin(chunkhead):
             chunkhead["memerror"] = "invaild memory" 
             bins.append(copy.deepcopy(chunkhead))
             return bins
-        while chunk["addr"] != chunkhead["addr"] and chunk["addr"] < libc:
+        while chunk["addr"] != chunkhead["addr"] :
             try :
                 cmd = "x/" + word + hex(chunk["addr"])
                 chunk["prev_size"] = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16) & 0xfffffffffffffff8
