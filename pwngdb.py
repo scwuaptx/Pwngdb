@@ -437,7 +437,7 @@ def ispie():
 def abcd(bit):
     s = ""
     for i in range(0x7a-0x41):
-        s += chr(0x41+i)*(int(bit)/8)
+        s += chr(0x41+i)*int((int(bit)/8))
     print(s)
 
 def length(bit,pat):
@@ -727,7 +727,7 @@ def get_largebin():
     global main_arena
     global largebin
     min_largebin = 512
-    smallbin = {}
+    largebin = {}
     ptrsize = 4
     idxsize = 56
     word = "wx "
