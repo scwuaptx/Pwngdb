@@ -39,7 +39,7 @@ If you want to use the feature of heapinfo and tracemalloc , you need to modify 
 + `findcall` : Find some function call 
 + `bcall` : Set the breakpoint at some function call
 + `tls` : Print the thread local storage address
-+ `attprog` : Attach by process name
++ `at` : Attach by process name
 + `heapinfo` : Print some infomation of heap
 + `fastbin` : Print some infomation of fastbin
 + `tracemalloc on` : Trace the malloc and free and detect some error .
