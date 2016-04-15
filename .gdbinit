@@ -1,6 +1,5 @@
 source ~/peda/peda.py
-source ~/Pwngdb/pwngdb.py
-
+source ~/pwngdb.py
 define libc
 	python putlibc()
 end
@@ -57,8 +56,11 @@ define rop
 	python rop()
 end
 
-define attprog
-	python attachprog("$arg0")
+define at
+	if $argc == 1 
+		python attachprog("$arg0")
+	else :
+		python attachprog()
 end
 
 define heap
