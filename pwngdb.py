@@ -795,8 +795,7 @@ def get_heap_info():
     global top
     top = {}
     freememoryarea = {}
-    if not main_arena:
-        set_main_arena()
+    set_main_arena()
     if main_arena :
         get_unsortbin()
         get_smailbin()
