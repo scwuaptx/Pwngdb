@@ -448,15 +448,14 @@ def putfindcall(sym):
     output = searchcall(sym)
     print(output)
 
-def attachprog(procname):
+def attachprog(procname = None):
     if procname :
         pidlist = subprocess.check_output("pidof " + procname,shell=True).decode('utf8').split()
         gdb.execute("attach " + pidlist[0])
     else :
         procname = gdb.objfiles()[0].filename
         pidlist = subprocess.check_output("pidof " + procname,shell=True).decode('utf8').split()
-        gdb.execute("attach " + pidlist[0]) 
-    
+        gdb.execute("attach " + pidlist[0])  
     if iscplus() :
         gdb.execute("set print asm-demangle on")
 

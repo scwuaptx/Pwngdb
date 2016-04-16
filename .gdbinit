@@ -1,5 +1,5 @@
 source ~/peda/peda.py
-source ~/pwngdb.py
+source ~/Pwngdb/pwngdb.py
 define libc
 	python putlibc()
 end
@@ -57,9 +57,9 @@ define rop
 end
 
 define at
-	if $argc == 1 
+	if $argc == 2 
 		python attachprog("$arg0")
-	else :
+	else 
 		python attachprog()
 end
 
