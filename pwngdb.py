@@ -256,7 +256,7 @@ def procmap():
         return "error"
 
 def iscplus():
-    name = getprocname()
+    name = gdb.objfiles()[0].filename
     data = subprocess.check_output("readelf -s " + name,shell=True).decode('utf8')
     if "CXX" in data :
         return True
@@ -448,12 +448,12 @@ def putfindcall(sym):
     output = searchcall(sym)
     print(output)
 
-def attachprog(procname = None):
+def attachprog(procname =None):
     if procname :
         pidlist = subprocess.check_output("pidof " + procname,shell=True).decode('utf8').split()
         gdb.execute("attach " + pidlist[0])
     else :
-        procname = gdb.objfiles()[0].filename
+        procname = gdb.objfiles()[0].filename.split("/")[-1]
         pidlist = subprocess.check_output("pidof " + procname,shell=True).decode('utf8').split()
         gdb.execute("attach " + pidlist[0])  
     if iscplus() :
@@ -792,6 +792,8 @@ def get_largebin():
 def get_heap_info():
     global main_arena
     global freememoryarea
+    global top
+    top = {}
     freememoryarea = {}
     if not main_arena:
         set_main_arena()
