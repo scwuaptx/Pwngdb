@@ -608,8 +608,12 @@ def trace_normal_bin(chunkhead):
     chunk = {}
     cmd = "x/" + word  + hex(chunkhead["addr"] + ptrsize*2) #fd
     chunk["addr"] = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16) #get fd chunk
-    if (chunk["addr"] == chunkhead["addr"]) and (chunkhead["addr"] > libc):  #no chunk in the bin
-        return bins
+    if (chunk["addr"] == chunkhead["addr"]) :  #no chunk in the bin
+        if (chunkhead["addr"] > libc) :
+            return bins
+        else :
+            bins.append(copy.deepcopy(chunkhead)) 
+            return bins
     else :
         try :
             cmd = "x/" + word + hex(chunkhead["addr"]+ptrsize*3)
@@ -742,7 +746,7 @@ def get_largebin():
         idxsize = 48
         word = "gx "
         min_largebin *=2
-    for i in range(32):
+    for i in range(32+1):
         size = min_largebin + i*4*0x10
         chunkhead = {}
         idx = largbin_index(size) 
@@ -750,43 +754,43 @@ def get_largebin():
         chunkhead["addr"] = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
         bins = trace_normal_bin(chunkhead)
         if bins and len(bins) > 0 :
-            largebin[(idx,hex(size),hex(size+ptrsize*0x10))] = copy.deepcopy(bins)
-    for i in range(16):
-        size = min_largebin + 32*4*0x8 + i*4*0x200
+            largebin[(idx,hex(size),hex(size+0x80))] = copy.deepcopy(bins)
+    for i in range(1,15):
+        size = min_largebin + 32*4*0x10 + i*4*0x80
         chunkhead = {}
         idx = largbin_index(size) 
         cmd = "x/" + word + hex(main_arena + (fastbinsize+2)*ptrsize + idx*ptrsize*2)  # calc the largbin index
         chunkhead["addr"] = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
         bins = trace_normal_bin(chunkhead)
         if bins and len(bins) > 0 :
-            largebin[(idx,hex(size),hex(size+ptrsize*0x80))] = copy.deepcopy(bins)
-    for i in range(8):
-        size = min_largebin + 32*4*0x10 + 16*4*0x200 + i*4*0x1000
+            largebin[(idx,hex(size),hex(size+0x200))] = copy.deepcopy(bins)
+    for i in range(8+1):
+        size = min_largebin + 32*4*0x10 + 16*4*0x80 + i*4*0x400
         chunkhead = {}
         idx = largbin_index(size) 
         cmd = "x/" + word + hex(main_arena + (fastbinsize+2)*ptrsize + idx*ptrsize*2)  # calc the largbin index
         chunkhead["addr"] = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
         bins = trace_normal_bin(chunkhead)
         if bins and len(bins) > 0 :
-            largebin[(idx,hex(size),hex(size+ptrsize*0x400))] = copy.deepcopy(bins)
-    for i in range(4):
-        size = min_largebin + 32*4*0x10 + 16*4*0x200 + 8*4*0x1000 + i*4*0x8000
+            largebin[(idx,hex(size),hex(size+0x1000))] = copy.deepcopy(bins)
+    for i in range(1,4+1):
+        size = min_largebin + 32*4*0x10 + 16*4*0x80 + 8*4*0x400 + i*4*0x2000
         chunkhead = {}
         idx = largbin_index(size) 
         cmd = "x/" + word + hex(main_arena + (fastbinsize+2)*ptrsize + idx*ptrsize*2)  # calc the largbin index
         chunkhead["addr"] = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
         bins = trace_normal_bin(chunkhead)
         if bins and len(bins) > 0 :
-            largebin[(idx,hex(size),hex(size+ptrsize*0x2000))] = copy.deepcopy(bins)
-    for i in range(2):
-        size = min_largebin + 32*4*0x10 + 16*4*0x200 + 8*4*0x1000 + 4*4*0x8000 + i*4*0x40000
+            largebin[(idx,hex(size),hex(size+0x8000))] = copy.deepcopy(bins)
+    for i in range(1,2+1):
+        size = min_largebin + 32*4*0x10 + 16*4*0x80 + 8*4*0x400 + 4*4*0x2000 + i*4*0x10000
         chunkhead = {}
         idx = largbin_index(size) 
         cmd = "x/" + word + hex(main_arena + (fastbinsize+2)*ptrsize + idx*ptrsize*2)  # calc the largbin index
         chunkhead["addr"] = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
         bins = trace_normal_bin(chunkhead)
         if bins and len(bins) > 0 :
-            largebin[(idx,hex(size),hex(size+ptrsize*0x10000))] = copy.deepcopy(bins)
+            largebin[(idx,hex(size),hex(size+0x40000))] = copy.deepcopy(bins)
 
 
 def get_heap_info():
