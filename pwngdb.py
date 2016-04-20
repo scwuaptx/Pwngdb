@@ -617,6 +617,7 @@ def trace_normal_bin(chunkhead):
                 chunk["size"] = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16) & 0xfffffffffffffff8
                 is_overlap = check_overlap(chunk["addr"],chunk["size"])
                 chunk["overlap"] = is_overlap
+                chunk["memerror"] = "\033[31mbad fd (" + hex(chunk["addr"]) + ")\033[37m"
             except :
                 chunk["memerror"] = "invaild memory"
             bins.append(copy.deepcopy(chunk)) 
@@ -651,6 +652,10 @@ def trace_normal_bin(chunkhead):
             try :
                 cmd = "x/" + word + hex(chunk["addr"]+ptrsize*2)
                 fd = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
+                if fd == chunk["addr"] :
+                    chunk["memerror"] = "\033[31mbad fd (" + hex(fd) + ")\033[37m"
+                    bins.append(copy.deepcopy(chunk))
+                    break
                 cmd = "x/" + word + hex(fd + ptrsize*3)
                 fd_bk = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
                 if chunk["addr"] != fd_bk :
