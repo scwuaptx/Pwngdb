@@ -617,7 +617,7 @@ def trace_normal_bin(chunkhead):
                 chunk["size"] = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16) & 0xfffffffffffffff8
             except :
                 chunk["memerror"] = "invaild memory"
-            bins.append(copy.deepcopy(chunkhead)) 
+            bins.append(copy.deepcopy(chunk)) 
             return bins
     else :
         try :
