@@ -615,6 +615,8 @@ def trace_normal_bin(chunkhead):
             try :
                 cmd = "x/" + word + hex(chunk["addr"]+ptrsize*1)
                 chunk["size"] = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16) & 0xfffffffffffffff8
+                is_overlap = check_overlap(chunk["addr"],chunk["size"])
+                chunk["overlap"] = is_overlap
             except :
                 chunk["memerror"] = "invaild memory"
             bins.append(copy.deepcopy(chunk)) 
