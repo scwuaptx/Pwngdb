@@ -612,6 +612,11 @@ def trace_normal_bin(chunkhead):
         if (chunkhead["addr"] > libc) :
             return bins
         else :
+            try :
+                cmd = "x/" + word + hex(chunk["addr"]+ptrsize*1)
+                chunk["size"] = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16) & 0xfffffffffffffff8
+            except :
+                chunk["memerror"] = "invaild memory"
             bins.append(copy.deepcopy(chunkhead)) 
             return bins
     else :
