@@ -28,7 +28,9 @@ tracemode = False
 tracelargebin = True
 mallocbp = None
 freebp = None
+print_overlap = True
 DEBUG = False  #debug msg (free and malloc) if you want
+
 
 class Malloc_bp_ret(gdb.FinishBreakpoint):
     global allocmemoryarea
@@ -870,6 +872,17 @@ def set_trace_mode(option="on"):
         tracemode = False
         dis_trace_malloc()
 
+def find_overlap(chunk,bins):
+    is_overlap = False
+    count = 0
+    for current in bins :
+        if chunk["addr"] == current["addr"] :
+            count += 1
+    if count > 1 :
+        is_overlap = True
+    return is_overlap
+
+
 def putfastbin():
     ptrsize = 4
     arch = getarch()
@@ -889,7 +902,13 @@ def putfastbin():
             elif chunk == bins[0]  :
                 print("\033[34m0x%x\033[37m" % chunk["addr"],end = "")
             else  :
-                print("0x%x" % chunk["addr"],end = "")
+                if print_overlap :
+                    if find_overlap(chunk,bins):
+                        print("\033[31m0x%x\033[37m" % chunk["addr"],end ="")
+                    else :
+                        print("0x%x" % chunk["addr"],end = "")
+                else :
+                    print("0x%x" % chunk["addr"],end = "")
             if chunk != bins[-1]:
                 print(" --> ",end = "")
         print("")
