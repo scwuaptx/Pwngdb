@@ -746,6 +746,7 @@ def largbin_index(size):
             idx = 126
     return idx 
 
+
 def get_largebin():
     global main_arena
     global largebin
@@ -760,52 +761,13 @@ def get_largebin():
         idxsize = 48
         word = "gx "
         min_largebin *=2
-    for i in range(32+1):
-        size = min_largebin + i*4*0x10
+    for idx in range(64,128):
         chunkhead = {}
-        idx = largbin_index(size) 
         cmd = "x/" + word + hex(main_arena + (fastbinsize+2)*ptrsize + idx*ptrsize*2)  # calc the largbin index
         chunkhead["addr"] = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
         bins = trace_normal_bin(chunkhead)
         if bins and len(bins) > 0 :
-            largebin[(idx,hex(size),hex(size+0x80))] = copy.deepcopy(bins)
-    for i in range(1,15):
-        size = min_largebin + 32*4*0x10 + i*4*0x80
-        chunkhead = {}
-        idx = largbin_index(size) 
-        cmd = "x/" + word + hex(main_arena + (fastbinsize+2)*ptrsize + idx*ptrsize*2)  # calc the largbin index
-        chunkhead["addr"] = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
-        bins = trace_normal_bin(chunkhead)
-        if bins and len(bins) > 0 :
-            largebin[(idx,hex(size),hex(size+0x200))] = copy.deepcopy(bins)
-    for i in range(8+1):
-        size = min_largebin + 32*4*0x10 + 16*4*0x80 + i*4*0x400
-        chunkhead = {}
-        idx = largbin_index(size) 
-        cmd = "x/" + word + hex(main_arena + (fastbinsize+2)*ptrsize + idx*ptrsize*2)  # calc the largbin index
-        chunkhead["addr"] = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
-        bins = trace_normal_bin(chunkhead)
-        if bins and len(bins) > 0 :
-            largebin[(idx,hex(size),hex(size+0x1000))] = copy.deepcopy(bins)
-    for i in range(1,4+1):
-        size = min_largebin + 32*4*0x10 + 16*4*0x80 + 8*4*0x400 + i*4*0x2000
-        chunkhead = {}
-        idx = largbin_index(size) 
-        cmd = "x/" + word + hex(main_arena + (fastbinsize+2)*ptrsize + idx*ptrsize*2)  # calc the largbin index
-        chunkhead["addr"] = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
-        bins = trace_normal_bin(chunkhead)
-        if bins and len(bins) > 0 :
-            largebin[(idx,hex(size),hex(size+0x8000))] = copy.deepcopy(bins)
-    for i in range(1,2+1):
-        size = min_largebin + 32*4*0x10 + 16*4*0x80 + 8*4*0x400 + 4*4*0x2000 + i*4*0x10000
-        chunkhead = {}
-        idx = largbin_index(size) 
-        cmd = "x/" + word + hex(main_arena + (fastbinsize+2)*ptrsize + idx*ptrsize*2)  # calc the largbin index
-        chunkhead["addr"] = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
-        bins = trace_normal_bin(chunkhead)
-        if bins and len(bins) > 0 :
-            largebin[(idx,hex(size),hex(size+0x40000))] = copy.deepcopy(bins)
-
+            largebin[idx] = copy.deepcopy(bins)
 
 def get_heap_info():
     global main_arena
@@ -959,8 +921,9 @@ def putheapinfo():
             if chunk != bins[-1]:
                 print(" <--> ",end = "")
         print("") 
-    for (idx,size,maxsize),bins in largebin.items():
-        print("\033[33m(0x%03x-0x%03x)  %s[%2d]:\033[37m " % (int(size,16),int(maxsize,16),"largebin",idx),end="")
+    for idx,bins in largebin.items():
+#        print("\033[33m(0x%03x-0x%03x)  %s[%2d]:\033[37m " % (int(size,16),int(maxsize,16),"largebin",idx),end="")
+        print("\033[33m  %15s[%2d]:\033[37m " % ("largebin",idx),end="")
         for chunk in bins :
             if "memerror" in chunk :
                 print("\033[31m0x%x (%s)\033[37m" % (chunk["addr"],chunk["memerror"]),end = "")
