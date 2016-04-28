@@ -777,10 +777,10 @@ def get_heap_info():
     freememoryarea = {}
     set_main_arena()
     if main_arena :
-        get_unsortbin()
-        get_smailbin()
         if tracelargebin :
             get_largebin()
+        get_unsortbin()
+        get_smailbin()
         get_fast_bin()
         get_top_lastremainder()
 
