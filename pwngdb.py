@@ -7,9 +7,9 @@ main_arena_off = 0 #You need to modify it if libc is stripd
 main_arena_off_32 = 0x1b7840  #You need to modify it 
 #main_arena_off_32 = 0
 top = {}
-_int_malloc_off = 0x818d0 # You need to modify it
+_int_malloc_off = 0x81870 # You need to modify it
 _int_malloc_off_32 = 0  # You need to modfiy it
-_int_free_off = 0x80690 # You need to modify it
+_int_free_off = 0x80630 # You need to modify it
 _int_free_off_32 = 0 # You need to modify it
 malloc_off = 0 # You need to modify it
 free_off = 0 # You need to modify it
@@ -30,7 +30,9 @@ mallocbp = None
 freebp = None
 print_overlap = True
 DEBUG = False  #debug msg (free and malloc) if you want
-
+capsize = 0 # arch 
+word = ""
+arch = ""
 
 class Malloc_bp_ret(gdb.FinishBreakpoint):
     global allocmemoryarea
@@ -42,29 +44,26 @@ class Malloc_bp_ret(gdb.FinishBreakpoint):
     
     def stop(self):
         chunk = {}
-        arch = getarch()
+        if len(arch) == 0 :
+            getarch()
         if arch == "x86-64" :
-            ptrsize = 8
-            word = "x/gx "
             value = int(self.return_value)
-            chunk["addr"] = value - ptrsize*2
+            chunk["addr"] = value - capsize*2
         else :
-            ptrsize = 4
-            word = "x/wx "
             cmd = "info register $eax"
             value = int(gdb.execute(cmd,to_string=True).split()[1].strip(),16)
-            chunk["addr"] = value - ptrsize*2
+            chunk["addr"] = value - capsize*2
         if value == 0 :
             return False
 
-        cmd = word + hex(chunk["addr"] + ptrsize)
+        cmd = "x/" + word + hex(chunk["addr"] + capsize)
         chunk["size"] = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16) & 0xfffffffffffffff8
         overlap,status = check_overlap(chunk["addr"],chunk["size"],allocmemoryarea)
         if overlap and status == "error" :
             if DEBUG :
                 print("\033[34m>--------------------------------------------------------------------------------------<\033[37m")
                 msg = "\033[33mmalloc(0x%x)\033[37m" % self.arg
-                print("%-40s = 0x%x \033[31m overlap detected !! (0x%x)\033[37m" % (msg,chunk["addr"]+ptrsize*2,overlap["addr"]))
+                print("%-40s = 0x%x \033[31m overlap detected !! (0x%x)\033[37m" % (msg,chunk["addr"]+capsize*2,overlap["addr"]))
                 print("\033[34m>--------------------------------------------------------------------------------------<\033[37m")
             else :
                 print("\033[31moverlap detected !! (0x%x)\033[37m" % overlap["addr"])
@@ -72,7 +71,7 @@ class Malloc_bp_ret(gdb.FinishBreakpoint):
         else :
             if DEBUG:
                 msg = "\033[33mmalloc(0x%x)\033[37m" % self.arg
-                print("%-40s = 0x%x" % (msg,chunk["addr"] + ptrsize*2))
+                print("%-40s = 0x%x" % (msg,chunk["addr"] + capsize*2))
         allocmemoryarea[hex(chunk["addr"])] = copy.deepcopy((chunk["addr"],chunk["addr"]+chunk["size"],chunk))
         if hex(chunk["addr"]) in freerecord :
             freechunktuple = freerecord[hex(chunk["addr"])]
@@ -83,24 +82,20 @@ class Malloc_bp_ret(gdb.FinishBreakpoint):
                 splitchunk["addr"] = chunk["addr"] + chunk["size"]
                 splitchunk["size"] = freechunk["size"] - chunk["size"]
                 freerecord[hex(splitchunk["addr"])] = copy.deepcopy((splitchunk["addr"],splitchunk["addr"]+splitchunk["size"],splitchunk))
-        if self.arg >= 128*ptrsize :
+        if self.arg >= 128*capsize :
             Malloc_consolidate()
 
 class Malloc_Bp_handler(gdb.Breakpoint):
     def stop(self):
-        arch = getarch()
-        ptrsize = 4
+        if len(arch) == 0 :
+            getarch()
         if arch == "x86-64":
-            ptrsize = 8
             if _int_malloc_off != 0 :
                 reg = "$rsi"
             else :
                 reg = "$rdi"
-            word = "x/gx "
             arg = int(gdb.execute("info register " + reg,to_string=True).split()[1].strip(),16)
         else :
-            ptrsize = 4
-            word = "x/wx "
             if _int_malloc_off_32 != 0 :
                 arg = int(gdb.execute("x/wx $esp+8" ,to_string=True).split(":")[1].strip(),16)
             else :
@@ -114,11 +109,9 @@ class Free_Bp_handler(gdb.Breakpoint):
         global freerecord
 #        get_heap_info()
         get_top_lastremainder()
-        arch = getarch()
-        ptrsize = 4
+        if len(arch) == 0 :
+            getarch()
         if arch == "x86-64":
-            ptrsize = 8
-            word = "x/gx "
             if _int_free_off != 0 :
                 reg = "$rsi"
                 result = int(gdb.execute("info register " + reg,to_string=True).split()[1].strip(),16) + 0x10
@@ -126,16 +119,14 @@ class Free_Bp_handler(gdb.Breakpoint):
                 reg = "$rdi"
                 result = int(gdb.execute("info register " + reg,to_string=True).split()[1].strip(),16)
         else :
-            ptrsize = 4
-            word = "x/wx "
             if _int_free_off_32 != 0:
                 result = int(gdb.execute("x/wx $esp+8" ,to_string=True).split(":")[1].strip(),16) + 0x8
             else :
                 result = int(gdb.execute("x/wx $esp+4" ,to_string=True).split(":")[1].strip(),16)
         chunk = {}
         prevfreed = False
-        chunk["addr"] = result - ptrsize*2
-        cmd = word + hex(chunk["addr"] + ptrsize)
+        chunk["addr"] = result - capsize*2
+        cmd = "x/" +word + hex(chunk["addr"] + capsize)
         size = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
         chunk["size"] = size & 0xfffffffffffffff8
         if (size & 1) == 0 :
@@ -166,7 +157,7 @@ class Free_Bp_handler(gdb.Breakpoint):
 
         prevchunk = {}
         if prevfreed :
-            cmd = word + hex(chunk["addr"])
+            cmd = "x/" +word + hex(chunk["addr"])
             prevchunk["size"] = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16) & 0xfffffffffffffff8
             prevchunk["addr"] = chunk["addr"] - prevchunk["size"]
             if hex(prevchunk["addr"]) not in freerecord :
@@ -185,9 +176,9 @@ class Free_Bp_handler(gdb.Breakpoint):
                 print("")
             return False
 
-        cmd = word + hex(nextchunk["addr"] + ptrsize)
+        cmd = "x/" + word + hex(nextchunk["addr"] + capsize)
         nextchunk["size"] = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16) & 0xfffffffffffffff8
-        cmd = word + hex(nextchunk["addr"] + nextchunk["size"] + ptrsize)
+        cmd = "x/" + word + hex(nextchunk["addr"] + nextchunk["size"] + capsize)
         nextinused = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16) & 1
         
         if nextinused == 0 and prevfreed: #next chunk is freed                       
@@ -220,7 +211,8 @@ def Malloc_consolidate(): #merge fastbin when malloc a large chunk or free a ver
     global fastbin
     global freerecord
     get_heap_info()
-    arch = getarch()
+    if capsize == 0 :
+        getarch()
     if arch == "x86-64":
         ptrsize = 8
         word = "gx "
@@ -233,12 +225,21 @@ def Malloc_consolidate(): #merge fastbin when malloc a large chunk or free a ver
 
 
 def getarch():
+    global capsize
+    global word
+    global arch
     data = gdb.execute('show arch',to_string = True)
-    arch =  re.search("currently.*",data)
-    if arch : 
-        if "x86-64" in arch.group() :
+    tmp =  re.search("currently.*",data)
+    if tmp :
+        if "x86-64" in tmp.group() :
+            capsize = 8
+            word = "gx "
+            arch = "x86-64"
             return "x86-64"
         else :
+            word = "wx "
+            capsize = 4
+            arch = "i386"
             return  "i386"
     else :
         return "error"
@@ -451,13 +452,21 @@ def putfindcall(sym):
     print(output)
 
 def attachprog(procname =None):
-    if procname :
-        pidlist = subprocess.check_output("pidof " + procname,shell=True).decode('utf8').split()
-        gdb.execute("attach " + pidlist[0])
-    else :
-        procname = gdb.objfiles()[0].filename.split("/")[-1]
-        pidlist = subprocess.check_output("pidof " + procname,shell=True).decode('utf8').split()
-        gdb.execute("attach " + pidlist[0])  
+    try :
+        if procname :
+            pidlist = subprocess.check_output("pidof " + procname,shell=True).decode('utf8').split()
+            gdb.execute("attach " + pidlist[0])
+        else :
+            try :
+                procname = gdb.objfiles()[0].filename.split("/")[-1]
+                pidlist = subprocess.check_output("pidof " + procname,shell=True).decode('utf8').split()
+                gdb.execute("attach " + pidlist[0])  
+            except :
+                print( "Attaching program: " )
+                print( "No executable file specified." )
+                print( "Use the \"file\" or \"exec-file\" command." )     
+    except :
+        print("No process")
     if iscplus() :
         gdb.execute("set print asm-demangle on")
 
@@ -521,19 +530,14 @@ def get_top_lastremainder():
     global top
     global last_remainder
     chunk = {}
-    arch = getarch()
-    if arch == "x86-64":
-        ptrsize = 8
-        word = "gx "
-    else :
-        ptrsize = 4
-        word = "wx "
+    if capsize == 0 :
+        arch = getarch()
     #get top
-    cmd = "x/" + word + hex(main_arena + fastbinsize*ptrsize + 8 )
+    cmd = "x/" + word + hex(main_arena + fastbinsize*capsize + 8 )
     chunk["addr"] =  int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
     chunk["size"] = 0
     if chunk["addr"] :
-        cmd = "x/" + word + hex(chunk["addr"]+ptrsize*1)
+        cmd = "x/" + word + hex(chunk["addr"]+capsize*1)
         try :
             chunk["size"] = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16) & 0xfffffffffffffff8
             if chunk["size"] > 0x21000 :
@@ -543,11 +547,11 @@ def get_top_lastremainder():
     top = copy.deepcopy(chunk)
     #get last_remainder
     chunk = {}
-    cmd = "x/" + word + hex(main_arena + (fastbinsize+1)*ptrsize + 8 )
+    cmd = "x/" + word + hex(main_arena + (fastbinsize+1)*capsize + 8 )
     chunk["addr"] =  int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
     chunk["size"] = 0
     if chunk["addr"] :
-        cmd = "x/" + word + hex(chunk["addr"]+ptrsize*1)
+        cmd = "x/" + word + hex(chunk["addr"]+capsize*1)
         try :
             chunk["size"] = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16) & 0xfffffffffffffff8
         except :
@@ -561,31 +565,26 @@ def get_fast_bin():
     global freememoryarea
     fastbin = []
     #freememoryarea = []
-    arch = getarch()
-    if arch == "x86-64":
-        ptrsize = 8
-        word = "gx "
-    else :
-        ptrsize = 4
-        word = "wx "
+    if capsize == 0 :
+        arch = getarch()
     for i in range(fastbinsize-3):
         fastbin.append([])
         chunk = {}
         is_overlap = (None,None)
-        cmd = "x/" + word  + hex(main_arena + i*ptrsize + 8)
+        cmd = "x/" + word  + hex(main_arena + i*capsize + 8)
         chunk["addr"] = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
         while chunk["addr"] and not is_overlap[0]:
-            cmd = "x/" + word + hex(chunk["addr"]+ptrsize*1)
+            cmd = "x/" + word + hex(chunk["addr"]+capsize*1)
             try :
                 chunk["size"] = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16) & 0xfffffffffffffff8
             except :
                 chunk["memerror"] = "invaild memory"
                 break
-            is_overlap = check_overlap(chunk["addr"], (ptrsize*2)*(i+2))
+            is_overlap = check_overlap(chunk["addr"], (capsize*2)*(i+2))
             chunk["overlap"] = is_overlap
-            freememoryarea[hex(chunk["addr"])] = copy.deepcopy((chunk["addr"],chunk["addr"] + (ptrsize*2)*(i+2) ,chunk))
+            freememoryarea[hex(chunk["addr"])] = copy.deepcopy((chunk["addr"],chunk["addr"] + (capsize*2)*(i+2) ,chunk))
             fastbin[i].append(copy.deepcopy(chunk))
-            cmd = "x/" + word + hex(chunk["addr"]+ptrsize*2)
+            cmd = "x/" + word + hex(chunk["addr"]+capsize*2)
             chunk = {}
             chunk["addr"] = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
         if not is_overlap[0]:
@@ -599,23 +598,19 @@ def trace_normal_bin(chunkhead):
     global freememoryarea  
     libc = libcbase()
     bins = []
-    ptrsize = 4
-    word = "wx "
-    arch = getarch()
-    if arch == "x86-64":
-        ptrsize = 8
-        word = "gx "
+    if capsize == 0 :
+        arch = getarch()
     if chunkhead["addr"] == 0 : # main_arena not initial
         return None
     chunk = {}
-    cmd = "x/" + word  + hex(chunkhead["addr"] + ptrsize*2) #fd
+    cmd = "x/" + word  + hex(chunkhead["addr"] + capsize*2) #fd
     chunk["addr"] = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16) #get fd chunk
     if (chunk["addr"] == chunkhead["addr"]) :  #no chunk in the bin
         if (chunkhead["addr"] > libc) :
             return bins
         else :
             try :
-                cmd = "x/" + word + hex(chunk["addr"]+ptrsize*1)
+                cmd = "x/" + word + hex(chunk["addr"]+capsize*1)
                 chunk["size"] = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16) & 0xfffffffffffffff8
                 is_overlap = check_overlap(chunk["addr"],chunk["size"])
                 chunk["overlap"] = is_overlap
@@ -626,9 +621,9 @@ def trace_normal_bin(chunkhead):
             return bins
     else :
         try :
-            cmd = "x/" + word + hex(chunkhead["addr"]+ptrsize*3)
+            cmd = "x/" + word + hex(chunkhead["addr"]+capsize*3)
             bk = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
-            cmd = "x/" + word + hex(bk+ptrsize*2)
+            cmd = "x/" + word + hex(bk+capsize*2)
             bk_fd = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
             if bk_fd != chunkhead["addr"]:
                 chunkhead["memerror"] = "\033[31mdoubly linked list corruption {0} != {1} and \033[36m{2}\033[31m is broken".format(hex(chunkhead["addr"]),hex(bk_fd),hex(chunkhead["addr"]))
@@ -646,19 +641,19 @@ def trace_normal_bin(chunkhead):
             try :
                 cmd = "x/" + word + hex(chunk["addr"])
                 chunk["prev_size"] = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16) & 0xfffffffffffffff8
-                cmd = "x/" + word + hex(chunk["addr"]+ptrsize*1)
+                cmd = "x/" + word + hex(chunk["addr"]+capsize*1)
                 chunk["size"] = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16) & 0xfffffffffffffff8
             except :
                 chunk["memerror"] = "invaild memory"
                 break
             try :
-                cmd = "x/" + word + hex(chunk["addr"]+ptrsize*2)
+                cmd = "x/" + word + hex(chunk["addr"]+capsize*2)
                 fd = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
                 if fd == chunk["addr"] :
                     chunk["memerror"] = "\033[31mbad fd (" + hex(fd) + ")\033[37m"
                     bins.append(copy.deepcopy(chunk))
                     break
-                cmd = "x/" + word + hex(fd + ptrsize*3)
+                cmd = "x/" + word + hex(fd + capsize*3)
                 fd_bk = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
                 if chunk["addr"] != fd_bk :
                     chunk["memerror"] = "\033[31mdoubly linked list corruption {0} != {1} and \033[36m{2}\033[31m or \033[36m{3}\033[31m is broken".format(hex(chunk["addr"]),hex(fd_bk),hex(fd),hex(chunk["addr"]))
@@ -672,7 +667,7 @@ def trace_normal_bin(chunkhead):
             chunk["overlap"] = is_overlap
             freememoryarea[hex(chunk["addr"])] = copy.deepcopy((chunk["addr"],chunk["addr"] + chunk["size"] ,chunk))
             bins.append(copy.deepcopy(chunk))
-            cmd = "x/" + word + hex(chunk["addr"]+ptrsize*2) #find next
+            cmd = "x/" + word + hex(chunk["addr"]+capsize*2) #find next
             chunk = {}
             chunk["addr"] = fd
     return bins
@@ -682,14 +677,10 @@ def get_unsortbin():
     global main_arena
     global unsortbin
     unsortbin = []
-    ptrsize = 4
-    word = "wx "
-    arch = getarch()
-    if arch == "x86-64":
-        ptrsize = 8
-        word = "gx "
+    if capsize == 0 :
+        arch = getarch()
     chunkhead = {}
-    cmd = "x/" + word + hex(main_arena + (fastbinsize+2)*ptrsize+8)
+    cmd = "x/" + word + hex(main_arena + (fastbinsize+2)*capsize+8)
     chunkhead["addr"] = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
     unsortbin = trace_normal_bin(chunkhead)
 
@@ -697,19 +688,14 @@ def get_unsortbin():
 def get_smailbin():
     global main_arena
     global smallbin
-    max_smallbin_size = 512
     smallbin = {}
-    ptrsize = 4
-    word = "wx "
-    arch = getarch()
-    if arch == "x86-64":
-        ptrsize = 8
-        word = "gx "
-        max_smallbin_size *= 2
-    for size in range(ptrsize*4,max_smallbin_size,ptrsize*2):
+    if capsize == 0 :
+        arch = getarch()
+    max_smallbin_size = 512*int(capsize/4)
+    for size in range(capsize*4,max_smallbin_size,capsize*2):
         chunkhead = {}
-        idx = int((size/(ptrsize*2)))-1
-        cmd = "x/" + word + hex(main_arena + (fastbinsize+2)*ptrsize+8 + idx*ptrsize*2)  # calc the smallbin index
+        idx = int((size/(capsize*2)))-1
+        cmd = "x/" + word + hex(main_arena + (fastbinsize+2)*capsize+8 + idx*capsize*2)  # calc the smallbin index
         chunkhead["addr"] = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
         bins = trace_normal_bin(chunkhead)
         if bins and len(bins) > 0 :
@@ -717,8 +703,9 @@ def get_smailbin():
 
 
 def largbin_index(size):
-    arch = getarch()
-    if arch == "x86-64":
+    if capsize == 0 :
+        arch = getarch()
+    if capsize == 8 :
         if (size >> 6) <= 48 :
             idx = 48 + (size >> 6)
         elif (size >> 9) <= 20 :
@@ -750,20 +737,13 @@ def largbin_index(size):
 def get_largebin():
     global main_arena
     global largebin
-    min_largebin = 512
     largebin = {}
-    ptrsize = 4
-    idxsize = 56
-    word = "wx "
-    arch = getarch()
-    if arch == "x86-64":
-        ptrsize = 8
-        idxsize = 48
-        word = "gx "
-        min_largebin *=2
+    if capsize == 0 :
+        arch = getarch()
+    min_largebin = 512*int(capsize/4)
     for idx in range(64,128):
         chunkhead = {}
-        cmd = "x/" + word + hex(main_arena + (fastbinsize+2)*ptrsize + idx*ptrsize*2)  # calc the largbin index
+        cmd = "x/" + word + hex(main_arena + (fastbinsize+2)*capsize + idx*capsize*2)  # calc the largbin index
         chunkhead["addr"] = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
         bins = trace_normal_bin(chunkhead)
         if bins and len(bins) > 0 :
@@ -795,8 +775,9 @@ def trace_malloc():
     global mallocbp
     global freebp
     libc = libcbase()
-    arch = getarch()
-    if arch == "x86-64" :
+    if capsize == 0 :
+        arch = getarch()
+    if capsize == 8 :
         if _int_malloc_off != 0 :
             malloc_addr = libc + _int_malloc_off
             free_addr = libc + _int_free_off
@@ -846,13 +827,11 @@ def find_overlap(chunk,bins):
 
 
 def putfastbin():
-    ptrsize = 4
-    arch = getarch()
-    if arch == "x86-64":
-        ptrsize = 8
+    if capsize == 0 :
+        arch = getarch()
     get_heap_info()
     for i,bins in enumerate(fastbin) :
-        cursize = (ptrsize*2)*(i+2)
+        cursize = (capsize*2)*(i+2)
         print("\033[32m(0x%02x)     fastbin[%d]:\033[37m " % (cursize,i),end = "")
         for chunk in bins :
             if "memerror" in chunk :
@@ -876,12 +855,8 @@ def putfastbin():
         print("")
 
 def putheapinfo():
-    ptrsize = 4
-    idxsize = 56
-    arch = getarch()
-    if arch == "x86-64":
-        ptrsize = 8
-        idxsize = 48
+    if capsize == 0 :
+        arch = getarch()
     putfastbin()
     if "memerror" in top :
         print("\033[35m %20s:\033[31m 0x%x \033[33m(size : 0x%x)\033[31m (%s)\033[37m " % ("top",top["addr"],top["size"],top["memerror"]))
@@ -905,7 +880,7 @@ def putheapinfo():
     else :
         print("\033[35m %20s:\033[37m 0x%x" % ("unsortbin",0)) #no chunk in unsortbin
     for size,bins in smallbin.items() :
-        idx = int((int(size,16)/(ptrsize*2)))-2 
+        idx = int((int(size,16)/(capsize*2)))-2 
         print("\033[33m(0x%03x)  %s[%2d]:\033[37m " % (int(size,16),"smallbin",idx),end="")
         for chunk in bins :
             if "memerror" in chunk :
