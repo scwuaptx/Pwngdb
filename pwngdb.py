@@ -7,14 +7,19 @@ main_arena_off = 0 #You need to modify it if libc is stripd
 main_arena_off_32 = 0x1b7840  #You need to modify it 
 #main_arena_off_32 = 0
 top = {}
+have_symbol = True
 _int_malloc_off = 0x81870 # You need to modify it
 _int_malloc_off_32 = 0  # You need to modfiy it
 _int_free_off = 0x80630 # You need to modify it
 _int_free_off_32 = 0 # You need to modify it
+_int_memalign_off = 0
+_int_memalign_off_32 = 0
 malloc_off = 0 # You need to modify it
 free_off = 0 # You need to modify it
 malloc_off_32 = 0x73260 # You need to modify it
 free_off_32 = 0x73880 # You need to modify it
+memalign_off = 0
+memalign_off_32 = 0
 last_remainder = {}
 fastbinsize = 10
 fastbin = []
@@ -28,6 +33,8 @@ tracemode = False
 tracelargebin = True
 mallocbp = None
 freebp = None
+memalignbp = None
+inmemalign = False
 print_overlap = True
 DEBUG = False  #debug msg (free and malloc) if you want
 capsize = 0 # arch 
@@ -55,7 +62,7 @@ class Malloc_bp_ret(gdb.FinishBreakpoint):
             chunk["addr"] = value - capsize*2
         if value == 0 :
             return False
-
+    
         cmd = "x/" + word + hex(chunk["addr"] + capsize)
         chunk["size"] = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16) & 0xfffffffffffffff8
         overlap,status = check_overlap(chunk["addr"],chunk["size"],allocmemoryarea)
@@ -65,6 +72,7 @@ class Malloc_bp_ret(gdb.FinishBreakpoint):
                 msg = "\033[33mmalloc(0x%x)\033[37m" % self.arg
                 print("%-40s = 0x%x \033[31m overlap detected !! (0x%x)\033[37m" % (msg,chunk["addr"]+capsize*2,overlap["addr"]))
                 print("\033[34m>--------------------------------------------------------------------------------------<\033[37m")
+                return True
             else :
                 print("\033[31moverlap detected !! (0x%x)\033[37m" % overlap["addr"])
             del allocmemoryarea[hex(overlap["addr"])]
@@ -103,11 +111,22 @@ class Malloc_Bp_handler(gdb.Breakpoint):
         Malloc_bp_ret(arg)
         return False
 
+
+class Free_bp_ret(gdb.FinishBreakpoint):
+    def __init__(self):
+        gdb.FinishBreakpoint.__init__(self,gdb.newest_frame(),internal=True)
+        self.silent = True
+    
+    def stop(self):
+        Malloc_consolidate()
+        return False
+
+
 class Free_Bp_handler(gdb.Breakpoint):
     def stop(self):
         global allocmemoryarea
         global freerecord
-#        get_heap_info()
+        global inmemalign
         get_top_lastremainder()
         if len(arch) == 0 :
             getarch()
@@ -124,8 +143,13 @@ class Free_Bp_handler(gdb.Breakpoint):
             else :
                 result = int(gdb.execute("x/wx $esp+4" ,to_string=True).split(":")[1].strip(),16)
         chunk = {}
+        if inmemalign :
+            Update_alloca()
+            inmemalign = False
         prevfreed = False
         chunk["addr"] = result - capsize*2
+#        if chunk["addr"] == 0x61f880 :
+#            return True
         cmd = "x/" +word + hex(chunk["addr"] + capsize)
         size = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
         chunk["size"] = size & 0xfffffffffffffff8
@@ -172,6 +196,7 @@ class Free_Bp_handler(gdb.Breakpoint):
         if nextchunk["addr"] == top["addr"] :
             if hex(chunk["addr"]) in allocmemoryarea :
                 del allocmemoryarea[hex(chunk["addr"])]
+                Free_bp_ret()
             if DEBUG :
                 print("")
             return False
@@ -187,7 +212,6 @@ class Free_Bp_handler(gdb.Breakpoint):
             else :
                 prevchunk["size"] += nextchunk["size"]
                 del freerecord[hex(nextchunk["addr"])]
-                chunk = prevchunk
         if nextinused == 0 and not prevfreed:
             if hex(nextchunk["addr"]) not in freerecord :
                 print("\033[31m confuse in nextchunk 0x%x" % nextchunk["addr"])
@@ -195,6 +219,8 @@ class Free_Bp_handler(gdb.Breakpoint):
                 chunk["size"] += nextchunk["size"]
                 del freerecord[hex(nextchunk["addr"])]
         if prevfreed :
+            if hex(chunk["addr"]) in allocmemoryarea :
+                del allocmemoryarea[hex(chunk["addr"])]
             chunk = prevchunk
 
         if DEBUG :
@@ -206,23 +232,33 @@ class Free_Bp_handler(gdb.Breakpoint):
             Malloc_consolidate()
         return False
 
+class Memalign_Bp_handler(gdb.Breakpoint):
+    def stop(self):
+        global inmemalign
+        inmemalign = True
+        return False
+
+def Update_alloca():
+    global allocmemoryarea
+    if capsize == 0:
+        getarch()
+    for addr,(start,end,chunk) in allocmemoryarea.items():
+        cmd = "x/" + word + hex(chunk["addr"] + capsize*1)
+        cursize = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16) & 0xfffffffffffffff8
+
+        if cursize != chunk["size"]:
+            chunk["size"] = cursize
+            allocmemoryarea[hex(chunk["addr"])]= copy.deepcopy((start,start + cursize,chunk))
+            
 
 def Malloc_consolidate(): #merge fastbin when malloc a large chunk or free a very large chunk
     global fastbin
     global freerecord
-    get_heap_info()
     if capsize == 0 :
         getarch()
-    if arch == "x86-64":
-        ptrsize = 8
-        word = "gx "
-    else :
-        ptrsize = 4
-        word = "wx "
     freerecord = {}
     get_heap_info()
     freerecord = copy.deepcopy(freememoryarea) 
-
 
 def getarch():
     global capsize
@@ -774,36 +810,51 @@ def get_reg(reg):
 def trace_malloc():
     global mallocbp
     global freebp
-    libc = libcbase()
-    if capsize == 0 :
-        arch = getarch()
-    if capsize == 8 :
-        if _int_malloc_off != 0 :
-            malloc_addr = libc + _int_malloc_off
-            free_addr = libc + _int_free_off
-        else :
-            malloc_addr = libc + malloc_off
-            free_addr = libc + free_off
-    else :
-        if _int_malloc_off_32 != 0 :
-            malloc_addr = libc + _int_malloc_off_32
-            free_addr = libc + _int_free_off_32
-        else :
-            malloc_addr = libc + malloc_off_32
-            free_addr = libc + free_off_32
+    global memalignbp
 
-    mallocbp = Malloc_Bp_handler("*" + hex(malloc_addr))
-    freebp = Free_Bp_handler("*" + hex(free_addr))
+    if not have_symbol :
+        libc = libcbase()
+        if capsize == 0 :
+            arch = getarch()
+        if capsize == 8 :
+            if _int_malloc_off != 0 :
+                malloc_addr = libc + _int_malloc_off
+                free_addr = libc + _int_free_off
+                memalign_addr = libc + memalign_off
+            else :
+                malloc_addr = libc + malloc_off
+                free_addr = libc + free_off
+        else :
+            if _int_malloc_off_32 != 0 :
+                malloc_addr = libc + _int_malloc_off_32
+                free_addr = libc + _int_free_off_32
+                memalign_addr = libc + memalign_off_32
+            else :
+                malloc_addr = libc + malloc_off_32
+                free_addr = libc + free_off_32
+        mallocbp = Malloc_Bp_handler("*" + hex(malloc_addr))
+        freebp = Free_Bp_handler("*" + hex(free_addr))
+        memalignbp = Memalign_Bp_handler("*" + hex(memalign_addr))
+    else :
+        mallocbp = Malloc_Bp_handler("*" + "_int_malloc")
+        freebp = Free_Bp_handler("*" + "_int_free")
+        memalignbp = Memalign_Bp_handler("*" + "_int_memalign")
+
+
     get_heap_info()
 
 def dis_trace_malloc():
     global mallocbp
     global freebp
-    if mallocbp and freebp :   
+    global memalignbp
+    if mallocbp and freebp  :   
         mallocbp.delete()
         freebp.delete()
+        if memalignbp :
+            memalignbp.delete()
         mallocbp = None
         freebp = None
+        memalignbp = None
         allocmemoryarea = {}
  
 def set_trace_mode(option="on"):
