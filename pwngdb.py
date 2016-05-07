@@ -547,16 +547,16 @@ def set_main_arena():
 def check_overlap(addr,size,data = None):
     if data :
         for key,(start,end,chunk) in data.items() :
-            if (addr >= start and addr < end) or ((addr+size) > start and (addr+size) < end ) or ((addr < start) and  ((addr + size) > end)):
+            if (addr >= start and addr < end) or ((addr+size) > start and (addr+size) < end ) or ((addr < start) and  ((addr + size) >= end)):
                 return chunk,"error"
     else :
         for key,(start,end,chunk) in freememoryarea.items() :
     #    print("addr 0x%x,start 0x%x,end 0x%x,size 0x%x" %(addr,start,end,size) )
-            if (addr >= start and addr < end) or ((addr+size) > start and (addr+size) < end ) or ((addr < start) and  ((addr + size) > end)):
+            if (addr >= start and addr < end) or ((addr+size) > start and (addr+size) < end ) or ((addr < start) and  ((addr + size) >= end)):
                 return chunk,"freed"
         for key,(start,end,chunk) in allocmemoryarea.items() :
     #    print("addr 0x%x,start 0x%x,end 0x%x,size 0x%x" %(addr,start,end,size) )
-            if (addr >= start and addr < end) or ((addr+size) > start and (addr+size) < end ) or ((addr < start) and  ((addr + size) > end)) :
+            if (addr >= start and addr < end) or ((addr+size) > start and (addr+size) < end ) or ((addr < start) and  ((addr + size) >= end)) :
                 return chunk,"inused" 
     return None,None
 
