@@ -56,13 +56,6 @@ define rop
 	python rop()
 end
 
-define at
-	if $argc == 2 
-		python attachprog("$arg0")
-	else 
-		python attachprog()
-end
-
 define heap
 	python putheap()
 end

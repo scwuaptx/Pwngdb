@@ -41,6 +41,36 @@ capsize = 0 # arch
 word = ""
 arch = ""
 
+class AttachProcess(gdb.Command):
+    """ Attach Process """
+
+    def __init__(self) :
+        super (AttachProcess,self).__init__("at",gdb.COMMAND_USER)   
+
+    def invoke(self,arg,from_tty):
+        args = arg.split()
+        if len(args) > 0 :
+            processname = args[0]
+        else :
+            processname = gdb.objfiles()[0].filename.split("/")[-1]
+        if processname :
+            self.attachprog(processname)
+        else :
+            print("No such program")
+
+    def attachprog(self,processname):
+        try :
+            pidlist = subprocess.check_output("pidof " + processname,shell=True).decode('utf8').split()
+            gdb.execute("attach " + pidlist[0])
+        except :
+            print( "Attaching program: " )
+            print( "No executable file specified." )
+            print( "Use the \"file\" or \"exec-file\" command." )     
+        if iscplus() :
+            gdb.execute("set print asm-demangle on")
+
+AttachProcess()
+
 class Malloc_bp_ret(gdb.FinishBreakpoint):
     global allocmemoryarea
     global freerecord
@@ -487,24 +517,7 @@ def putfindcall(sym):
     output = searchcall(sym)
     print(output)
 
-def attachprog(procname =None):
-    try :
-        if procname :
-            pidlist = subprocess.check_output("pidof " + procname,shell=True).decode('utf8').split()
-            gdb.execute("attach " + pidlist[0])
-        else :
-            try :
-                procname = gdb.objfiles()[0].filename.split("/")[-1]
-                pidlist = subprocess.check_output("pidof " + procname,shell=True).decode('utf8').split()
-                gdb.execute("attach " + pidlist[0])  
-            except :
-                print( "Attaching program: " )
-                print( "No executable file specified." )
-                print( "Use the \"file\" or \"exec-file\" command." )     
-    except :
-        print("No process")
-    if iscplus() :
-        gdb.execute("set print asm-demangle on")
+
 
 def rop():
     procname = getprocname()
