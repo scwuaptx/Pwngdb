@@ -34,7 +34,9 @@ tracelargebin = True
 mallocbp = None
 freebp = None
 memalignbp = None
+reallocbp = None
 inmemalign = False
+inrealloc = False
 print_overlap = True
 DEBUG = False  #debug msg (free and malloc) if you want
 capsize = 0 # arch 
@@ -102,7 +104,6 @@ class Malloc_bp_ret(gdb.FinishBreakpoint):
                 msg = "\033[33mmalloc(0x%x)\033[37m" % self.arg
                 print("%-40s = 0x%x \033[31m overlap detected !! (0x%x)\033[37m" % (msg,chunk["addr"]+capsize*2,overlap["addr"]))
                 print("\033[34m>--------------------------------------------------------------------------------------<\033[37m")
-                return True
             else :
                 print("\033[31moverlap detected !! (0x%x)\033[37m" % overlap["addr"])
             del allocmemoryarea[hex(overlap["addr"])]
@@ -157,6 +158,7 @@ class Free_Bp_handler(gdb.Breakpoint):
         global allocmemoryarea
         global freerecord
         global inmemalign
+        global inrealloc
         get_top_lastremainder()
         if len(arch) == 0 :
             getarch()
@@ -173,9 +175,10 @@ class Free_Bp_handler(gdb.Breakpoint):
             else :
                 result = int(gdb.execute("x/wx $esp+4" ,to_string=True).split(":")[1].strip(),16)
         chunk = {}
-        if inmemalign :
+        if inmemalign or inrealloc:
             Update_alloca()
             inmemalign = False
+            inrealloc = False
         prevfreed = False
         chunk["addr"] = result - capsize*2
 #        if chunk["addr"] == 0x61f880 :
@@ -266,6 +269,12 @@ class Memalign_Bp_handler(gdb.Breakpoint):
     def stop(self):
         global inmemalign
         inmemalign = True
+        return False
+
+class Realloc_Bp_handler(gdb.Breakpoint):
+    def stop(self):
+        global inrealloc
+        inrealloc = True
         return False
 
 def Update_alloca():
@@ -824,6 +833,7 @@ def trace_malloc():
     global mallocbp
     global freebp
     global memalignbp
+    global reallocbp
 
     if not have_symbol :
         libc = libcbase()
@@ -846,14 +856,14 @@ def trace_malloc():
                 malloc_addr = libc + malloc_off_32
                 free_addr = libc + free_off_32
         mallocbp = Malloc_Bp_handler("*" + hex(malloc_addr))
+
         freebp = Free_Bp_handler("*" + hex(free_addr))
         memalignbp = Memalign_Bp_handler("*" + hex(memalign_addr))
     else :
         mallocbp = Malloc_Bp_handler("*" + "_int_malloc")
         freebp = Free_Bp_handler("*" + "_int_free")
         memalignbp = Memalign_Bp_handler("*" + "_int_memalign")
-
-
+        reallocbp = Realloc_Bp_handler("*" + "_int_realloc")
     get_heap_info()
 
 def dis_trace_malloc():
@@ -874,7 +884,10 @@ def set_trace_mode(option="on"):
     global tracemode
     if option == "on":
         tracemode = True
-        trace_malloc()
+        try :
+            trace_malloc()
+        except :
+            print("Can't create Breakpoint")
     else :
         tracemode = False
         dis_trace_malloc()
