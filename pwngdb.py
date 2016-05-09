@@ -43,46 +43,18 @@ capsize = 0 # arch
 word = ""
 arch = ""
 
-class AttachProcess(gdb.Command):
-    """ Attach Process """
-
-    def __init__(self) :
-        super (AttachProcess,self).__init__("at",gdb.COMMAND_USER)   
-
-    def invoke(self,arg,from_tty):
-        args = arg.split()
-        if len(args) > 0 :
-            processname = args[0]
-        else :
-            processname = gdb.objfiles()[0].filename.split("/")[-1]
-        if processname :
-            self.attachprog(processname)
-        else :
-            print("No such program")
-
-    def attachprog(self,processname):
-        try :
-            pidlist = subprocess.check_output("pidof " + processname,shell=True).decode('utf8').split()
-            gdb.execute("attach " + pidlist[0])
-        except :
-            print( "Attaching program: " )
-            print( "No executable file specified." )
-            print( "Use the \"file\" or \"exec-file\" command." )     
-        if iscplus() :
-            gdb.execute("set print asm-demangle on")
-
-AttachProcess()
-
 class PwnCmd(object):
     commands = []
     def __init__(self):
-        # list of all available commands
+        # list all commands
         self.commands = [cmd for cmd in dir(self) if callable(getattr(self, cmd)) ]  
 
     def libc(self):
+        """ Get libc base """
         print("\033[34m" + "libc : " + "\033[37m" + hex(libcbase()))
 
     def heap(self):
+        """ Get heapbase """
         heapbase = getheapbase()
         if heapbase :
             print("\033[34m" + "heapbase : " + "\033[37m" + hex(heapbase))
@@ -90,18 +62,23 @@ class PwnCmd(object):
             print("heap not found")
 
     def ld(self):
+        """ Get ld.so base """
         print("\033[34m" + "ld : " + "\033[37m" + hex(ldbase()))
 
     def codebase(self):
+        """ Get text base """
         print("\033[34m" + "codebase : " + "\033[37m" + hex(codeaddr()[0]))
 
     def tls(self):
+        """ Get tls base """
         print("\033[34m" + "tls : " + "\033[37m" + hex(gettls()))
 
     def canary(self):
+        """ Get canary value """
         print("\033[34m" + "canary : " + "\033[37m" + hex(getcanary()))
 
     def off(self,*arg) :
+        """ Calculate the offset of libc """
         (sym,)= normalize_argv(arg,1)
         symaddr = getoff(sym)
         if symaddr == 0 :
@@ -113,6 +90,7 @@ class PwnCmd(object):
                 print("\033[34m" + sym  + ":" + "\033[37m" +hex(symaddr))
 
     def findsyscall(self):
+        """ find the syscall gadget"""
         arch = getarch()
         start,end = codeaddr()
         if arch == "x86-64" :
@@ -123,6 +101,7 @@ class PwnCmd(object):
             print("error")
 
     def got(self):
+        """ Print the got table """
         procname = getprocname()
         cmd = "objdump -R "
         if iscplus :
@@ -132,22 +111,43 @@ class PwnCmd(object):
         print(got)
 
     def dyn(self):
+        """ Print dynamic section """
         data = gdb.execute("info proc exe",to_string=True)
         procname = re.search("exe.*",data).group().split("=")[1][2:-1]
         dyn = subprocess.check_output("readelf -d " + procname,shell=True).decode('utf8')
         print(dyn)
 
     def rop(self):
+        """ ROPgadget """
         procname = getprocname()
         subprocess.call("ROPgadget --binary " + procname,shell=True)
 
     def findcall(self,*arg):
+        """ Find some function call """
         (sym,)= normalize_argv(arg,1)
         output = searchcall(sym)
         print(output)
 
+    def at(self,*arg):
+        """ Attach by processname """
+        (processname,) = normalize_argv(arg,1)
+        if not processname :
+            processname = gdb.objfiles()[0].filename.split("/")[-1]
+        if processname :
+            try :
+                pidlist = subprocess.check_output("pidof " + processname,shell=True).decode('utf8').split()
+                gdb.execute("attach " + pidlist[0])
+            except :
+                print( "Attaching program: " )
+                print( "No executable file specified." )
+                print( "Use the \"file\" or \"exec-file\" command." )     
+            if iscplus() :
+                gdb.execute("set print asm-demangle on") 
+        else :
+            print("No such program")
 
     def bcall(self,*arg):
+        """ Set the breakpoint at some function call """
         (sym,)= normalize_argv(arg,1)
         call = searchcall(sym)
         if "not found" in call :
@@ -178,6 +178,7 @@ class PwnCmd(object):
         print(off)
 
     def tracemalloc(self,*arg):
+        """ Trace the malloc and free and detect some error """
         (option,) = normalize_argv(arg,1)
         global tracemode
         if option == "on":
@@ -189,13 +190,17 @@ class PwnCmd(object):
         else :
             tracemode = False
             dis_trace_malloc()
+
     def heapinfo(self):
+        """ Print some information of heap """
         putheapinfo()
 
     def printfastbin(self):
+        """ Print the fastbin """
         putfastbin()
 
     def inused(self):
+        """ Print the inuse chunk """
         putinused()
 
 class PwngdbCmd(gdb.Command):
