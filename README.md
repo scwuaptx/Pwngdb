@@ -40,8 +40,9 @@ If you want to use the feature of heapinfo and tracemalloc , you need to modify 
 + `bcall` : Set the breakpoint at some function call
 + `tls` : Print the thread local storage address
 + `at` : Attach by process name
++ `findsyscall` : Find the syscall
 + `heapinfo` : Print some infomation of heap
-+ `fastbin` : Print some infomation of fastbin
++ `printfastbin` : Print some infomation of fastbin
 + `tracemalloc on` : Trace the malloc and free and detect some error .
 	+ You need to run the process first than `tracemalloc on`, it will record all of the malloc and free.
 	+ You can set the `DEBUG` in pwngdb.py , than it will print all of the malloc and free infomation such as the screeshot.

@@ -73,6 +73,163 @@ class AttachProcess(gdb.Command):
 
 AttachProcess()
 
+class PwnCmd(object):
+    commands = []
+    def __init__(self):
+        # list of all available commands
+        self.commands = [cmd for cmd in dir(self) if callable(getattr(self, cmd)) ]  
+
+    def libc(self):
+        print("\033[34m" + "libc : " + "\033[37m" + hex(libcbase()))
+
+    def heap(self):
+        heapbase = getheapbase()
+        if heapbase :
+            print("\033[34m" + "heapbase : " + "\033[37m" + hex(heapbase))
+        else :
+            print("heap not found")
+
+    def ld(self):
+        print("\033[34m" + "ld : " + "\033[37m" + hex(ldbase()))
+
+    def codebase(self):
+        print("\033[34m" + "codebase : " + "\033[37m" + hex(codeaddr()[0]))
+
+    def tls(self):
+        print("\033[34m" + "tls : " + "\033[37m" + hex(gettls()))
+
+    def canary(self):
+        print("\033[34m" + "canary : " + "\033[37m" + hex(getcanary()))
+
+    def off(self,*arg) :
+        (sym,)= normalize_argv(arg,1)
+        symaddr = getoff(sym)
+        if symaddr == 0 :
+            print("Not found the symbol")
+        else :
+            if type(sym) is int :
+                print("\033[34m" + hex(sym)  + ":" + "\033[37m" +hex(symaddr))
+            else :
+                print("\033[34m" + sym  + ":" + "\033[37m" +hex(symaddr))
+
+    def findsyscall(self):
+        arch = getarch()
+        start,end = codeaddr()
+        if arch == "x86-64" :
+            gdb.execute("find 0x050f " + hex(start) + " " + hex(end) )
+        elif arch == "i386":
+            gdb.execute("find 0x80cd " + hex(start) + " " + hex(end) )
+        else :
+            print("error")
+
+    def got(self):
+        procname = getprocname()
+        cmd = "objdump -R "
+        if iscplus :
+            cmd += "--demangle "
+        cmd += procname
+        got = subprocess.check_output(cmd,shell=True)[:-2].decode('utf8')
+        print(got)
+
+    def dyn(self):
+        data = gdb.execute("info proc exe",to_string=True)
+        procname = re.search("exe.*",data).group().split("=")[1][2:-1]
+        dyn = subprocess.check_output("readelf -d " + procname,shell=True).decode('utf8')
+        print(dyn)
+
+    def rop(self):
+        procname = getprocname()
+        subprocess.call("ROPgadget --binary " + procname,shell=True)
+
+    def findcall(self,*arg):
+        (sym,)= normalize_argv(arg,1)
+        output = searchcall(sym)
+        print(output)
+
+
+    def bcall(self,*arg):
+        (sym,)= normalize_argv(arg,1)
+        call = searchcall(sym)
+        if "not found" in call :
+            print("symbol not found")
+        else :
+            if ispie():
+                codebaseaddr,codeend = codeaddr()
+                for callbase in call.split('\n')[:-1]: 
+                    addr = int(callbase.split(':')[0],16) + codebaseaddr
+                    cmd = "b*" + hex(addr)
+                    print(gdb.execute(cmd,to_string=True))
+            else:
+                for callbase in  call.split('\n')[:-1]:
+                    addr = int(callbase.split(':')[0],16)
+                    cmd = "b*" + hex(addr)
+                    print(gdb.execute(cmd,to_string=True))
+
+    def abcd(self,*arg):
+        (bit,) = normalize_argv(arg,1)
+        s = ""
+        for i in range(0x7a-0x41):
+            s += chr(0x41+i)*int((int(bit)/8))
+        print(s)
+
+    def length(self,*arg):
+        (bit,pat) = normalize_argv(arg,2)
+        off = (ord(pat) - 0x41)*(int(bit)/8)
+        print(off)
+
+    def tracemalloc(self,*arg):
+        (option,) = normalize_argv(arg,1)
+        global tracemode
+        if option == "on":
+            tracemode = True
+            try :
+                trace_malloc()
+            except :
+                print("Can't create Breakpoint")
+        else :
+            tracemode = False
+            dis_trace_malloc()
+    def heapinfo(self):
+        putheapinfo()
+
+    def printfastbin(self):
+        putfastbin()
+
+    def inused(self):
+        putinused()
+
+class PwngdbCmd(gdb.Command):
+    """ Pwngdb command wrapper """
+    def __init__(self):
+        super(PwngdbCmd,self).__init__("pwngdb",gdb.COMMAND_USER)
+
+    def invoke(self,args,from_tty):
+        self.dont_repeat()
+        arg = args.split()
+        if len(arg) > 0 :
+            cmd = arg[0]
+        if cmd in pwncmd.commands :
+            func = getattr(pwncmd,cmd)
+            func(*arg[1:])
+        else :
+            print("Unknown command")
+
+        return 
+
+class PwngdbAlias(gdb.Command):
+    """ Pwngdb Alias """
+
+    def __init__(self,alias,command):
+        self.command = command
+        super(PwngdbAlias,self).__init__(alias,gdb.COMMAND_NONE)
+
+    def invoke(self,args,from_tty):
+        self.dont_repeat()
+        gdb.execute("%s %s" % (self.command,args))
+
+
+
+
 class Malloc_bp_ret(gdb.FinishBreakpoint):
     global allocmemoryarea
     global freerecord
@@ -381,21 +538,12 @@ def codeaddr(): # ret (start,end)
     pat = ".*" + procname
     data = re.findall(pat,infomap)
     if data :
-        codebase = data[0].split("-")[0]
+        codebaseaddr = data[0].split("-")[0]
         codeend = data[0].split("-")[1].split()[0]
-        return (int(codebase,16),int(codeend,16))
+        return (int(codebaseaddr,16),int(codeend,16))
     else :
         return (0,0)
 
-def findsyscall():
-    arch = getarch()
-    start,end = codeaddr()
-    if arch == "x86-64" :
-        gdb.execute("find 0x050f " + hex(start) + " " + hex(end) )
-    elif arch == "i386":
-        gdb.execute("find 0x80cd " + hex(start) + " " + hex(end) )
-    else :
-        print("error")
 
 def gettls():
     arch = getarch()
@@ -429,34 +577,13 @@ def getcanary():
     else :
         return "error"
 
-def puttls():
-    print("\033[34m" + "tls : " + "\033[37m" + hex(gettls()))
 
-def putlibc():
-    print("\033[34m" + "libc : " + "\033[37m" + hex(libcbase()))
 
-def putheap():
-    heapbase = getheapbase()
-    if heapbase :
-        print("\033[34m" + "heapbase : " + "\033[37m" + hex(heapbase))
-    else :
-        print("heap not found")
-
-def putld():
-    print("\033[34m" + "ld : " + "\033[37m" + hex(ldbase()))
-
-def putcodebase():
-    print("\033[34m" + "codebase : " + "\033[37m" + hex(codeaddr()[0]))
-
-def putcanary():
-    print("\033[34m" + "canary : " + "\033[37m" + hex(getcanary()))
-
-def off(sym):
+def getoff(sym):
     libc = libcbase()
-    try :
-        symaddr = int(sym,16)
-        return symaddr-libc
-    except :
+    if type(sym) is int :
+        return sym-libc
+    else :
         try :
             data = gdb.execute("x/x " + sym ,to_string=True)
             if "No symbol" in data:
@@ -469,27 +596,9 @@ def off(sym):
         except :
             return 0
 
-def putoff(sym) :
-    symaddr = off(sym)
-    if symaddr == 0 :
-        print("Not found the symbol")
-    else :
-        print("\033[34m" + sym  + ":" + "\033[37m" +hex(symaddr))
 
-def got():
-    procname = getprocname()
-    cmd = "objdump -R "
-    if iscplus :
-        cmd += "--demangle "
-    cmd += procname
-    got = subprocess.check_output(cmd,shell=True)[:-2].decode('utf8')
-    print(got)
 
-def dyn():
-    data = gdb.execute("info proc exe",to_string=True)
-    procname = re.search("exe.*",data).group().split("=")[1][2:-1]
-    dyn = subprocess.check_output("readelf -d " + procname,shell=True).decode('utf8')
-    print(dyn)
+
 
 def searchcall(sym):
     procname = getprocname()
@@ -512,48 +621,14 @@ def ispie():
     else:
         return False
 
-def abcd(bit):
-    s = ""
-    for i in range(0x7a-0x41):
-        s += chr(0x41+i)*int((int(bit)/8))
-    print(s)
-
-def length(bit,pat):
-    off = (ord(pat) - 0x41)*(int(bit)/8)
-    print(off)
-
-def putfindcall(sym):
-    output = searchcall(sym)
-    print(output)
 
 
 
-def rop():
-    procname = getprocname()
-    subprocess.call("ROPgadget --binary " + procname,shell=True)
-
-
-def bcall(sym):
-    call = searchcall(sym)
-    if "not found" in call :
-        print("symbol not found")
-    else :
-        if ispie():
-            codebase,codeend = codeaddr()
-            for callbase in call.split('\n')[:-1]: 
-                addr = int(callbase.split(':')[0],16) + codebase
-                cmd = "b*" + hex(addr)
-                print(gdb.execute(cmd,to_string=True))
-        else:
-            for callbase in  call.split('\n')[:-1]:
-                addr = int(callbase.split(':')[0],16)
-                cmd = "b*" + hex(addr)
-                print(gdb.execute(cmd,to_string=True))
 
 def set_main_arena():
     global main_arena
     global main_arena_off
-    offset = off("&main_arena")
+    offset = getoff("&main_arena")
     libc = libcbase()
     arch = getarch()
     if arch == "i386":
@@ -880,17 +955,7 @@ def dis_trace_malloc():
         memalignbp = None
         allocmemoryarea = {}
  
-def set_trace_mode(option="on"):
-    global tracemode
-    if option == "on":
-        tracemode = True
-        try :
-            trace_malloc()
-        except :
-            print("Can't create Breakpoint")
-    else :
-        tracemode = False
-        dis_trace_malloc()
+
 
 def find_overlap(chunk,bins):
     is_overlap = False
@@ -997,3 +1062,8 @@ def putinused():
     for addr,(start,end,chunk) in allocmemoryarea.items() :
         print("0x%x," % (chunk["addr"]),end="")
     print("")
+
+pwncmd = PwnCmd()
+PwngdbCmd()
+for cmd in pwncmd.commands :
+    PwngdbAlias(cmd,"pwngdb %s" % cmd)
