@@ -102,25 +102,40 @@ class PwnCmd(object):
 
     def got(self):
         """ Print the got table """
-        procname = getprocname()
-        cmd = "objdump -R "
-        if iscplus :
-            cmd += "--demangle "
-        cmd += procname
-        got = subprocess.check_output(cmd,shell=True)[:-2].decode('utf8')
-        print(got)
+        try :
+            processname = getprocname()
+        except :
+            processname = gdb.objfiles()[0].filename.split("/")[-1]
+        if processname :
+            cmd = "objdump -R "
+            if iscplus :
+                cmd += "--demangle "
+            cmd += processname
+            got = subprocess.check_output(cmd,shell=True)[:-2].decode('utf8')
+            print(got)
+        else :
+            print("No such program")
 
     def dyn(self):
         """ Print dynamic section """
-        data = gdb.execute("info proc exe",to_string=True)
-        procname = re.search("exe.*",data).group().split("=")[1][2:-1]
-        dyn = subprocess.check_output("readelf -d " + procname,shell=True).decode('utf8')
-        print(dyn)
+        try :
+            processname = getprocname()
+        except :
+            processname = gdb.objfiles()[0].filename.split("/")[-1]
+        if processname :
+            dyn = subprocess.check_output("readelf -d " + processname,shell=True).decode('utf8')
+            print(dyn)
+        else :
+            print("No such program")
 
     def rop(self):
         """ ROPgadget """
-        procname = getprocname()
-        subprocess.call("ROPgadget --binary " + procname,shell=True)
+        try :
+            procname = getprocname()
+        except :
+            procname = gdb.objfiles()[0].filename.split("/")[-1]
+        if procname :
+            subprocess.call("ROPgadget --binary " + procname,shell=True)
 
     def findcall(self,*arg):
         """ Find some function call """
@@ -131,20 +146,22 @@ class PwnCmd(object):
     def at(self,*arg):
         """ Attach by processname """
         (processname,) = normalize_argv(arg,1)
-        if not processname :
-            processname = gdb.objfiles()[0].filename.split("/")[-1]
-        if processname :
-            try :
+        try :
+            if not processname :
+                processname = gdb.objfiles()[0].filename.split("/")[-1]
+            if processname :
                 pidlist = subprocess.check_output("pidof " + processname,shell=True).decode('utf8').split()
                 gdb.execute("attach " + pidlist[0])
-            except :
-                print( "Attaching program: " )
-                print( "No executable file specified." )
-                print( "Use the \"file\" or \"exec-file\" command." )     
-            if iscplus() :
-                gdb.execute("set print asm-demangle on") 
-        else :
-            print("No such program")
+            else :
+                print("No such program")
+        except :
+            print( "Attaching program: " )
+            print( "No executable file specified." )
+            print( "Use the \"file\" or \"exec-file\" command." )   
+            return 
+        if iscplus() :
+            gdb.execute("set print asm-demangle on") 
+
 
     def bcall(self,*arg):
         """ Set the breakpoint at some function call """
@@ -213,11 +230,13 @@ class PwngdbCmd(gdb.Command):
         arg = args.split()
         if len(arg) > 0 :
             cmd = arg[0]
-        if cmd in pwncmd.commands :
-            func = getattr(pwncmd,cmd)
-            func(*arg[1:])
+            if cmd in pwncmd.commands :
+                func = getattr(pwncmd,cmd)
+                func(*arg[1:])
+            else :
+                print("Unknown command")
         else :
-            print("Unknown command")
+            print("Unknow command")
 
         return 
 
