@@ -108,7 +108,7 @@ class PwnCmd(object):
         try :
             processname = getprocname()
         except :
-            processname = gdb.objfiles()[0].filename.split("/")[-1]
+            processname = gdb.objfiles()[0].filename
         if processname :
             cmd = "objdump -R "
             if iscplus :
@@ -124,7 +124,7 @@ class PwnCmd(object):
         try :
             processname = getprocname()
         except :
-            processname = gdb.objfiles()[0].filename.split("/")[-1]
+            processname = gdb.objfiles()[0].filename
         if processname :
             dyn = subprocess.check_output("readelf -d " + processname,shell=True).decode('utf8')
             print(dyn)
@@ -136,7 +136,7 @@ class PwnCmd(object):
         try :
             procname = getprocname()
         except :
-            procname = gdb.objfiles()[0].filename.split("/")[-1]
+            procname = gdb.objfiles()[0].filename
         if procname :
             subprocess.call("ROPgadget --binary " + procname,shell=True)
 
@@ -153,17 +153,17 @@ class PwnCmd(object):
             if not processname :
                 processname = gdb.objfiles()[0].filename.split("/")[-1]
             if processname :
-                pidlist = subprocess.check_output("pidof " + processname,shell=True).decode('utf8').split()
-                gdb.execute("attach " + pidlist[0])
-            else :
-                print("No such program")
+                try :
+                    pidlist = subprocess.check_output("pidof " + processname,shell=True).decode('utf8').split()
+                    gdb.execute("attach " + pidlist[0])
+                except :
+                    print( "No such process" )
         except :
             print( "Attaching program: " )
             print( "No executable file specified." )
             print( "Use the \"file\" or \"exec-file\" command." )   
             return 
-        if iscplus() :
-            gdb.execute("set print asm-demangle on") 
+        gdb.execute("set print asm-demangle on") 
 
 
     def bcall(self,*arg):
