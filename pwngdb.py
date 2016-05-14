@@ -487,11 +487,17 @@ def getarch():
     data = gdb.execute('show arch',to_string = True)
     tmp =  re.search("currently.*",data)
     if tmp :
-        if "x86-64" in tmp.group() :
+        info = tmp.group()
+        if "x86-64" in info:
             capsize = 8
             word = "gx "
             arch = "x86-64"
             return "x86-64"
+        elif "aarch64" in info :
+            capsize = 8
+            word = "gx "
+            arch = "aarch64"
+            return "aarch64"
         else :
             word = "wx "
             capsize = 4
