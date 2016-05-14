@@ -79,7 +79,8 @@ class PwnCmd(object):
 
     def off(self,*arg) :
         """ Calculate the offset of libc """
-        (sym,)= normalize_argv(arg,1)
+        #(sym,)= normalize_argv(arg,1)
+        sym = arg[0]
         symaddr = getoff(sym)
         if symaddr == 0 :
             print("Not found the symbol")
@@ -97,6 +98,8 @@ class PwnCmd(object):
             gdb.execute("find 0x050f " + hex(start) + " " + hex(end) )
         elif arch == "i386":
             gdb.execute("find 0x80cd " + hex(start) + " " + hex(end) )
+        elif arch == "aarch64":
+            gdb.execute("find 0xd4000001 " + hex(start) + " " + hex(end) )
         else :
             print("error")
 
