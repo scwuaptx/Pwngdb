@@ -535,8 +535,9 @@ def getprocname(relative=False):
         data = gdb.execute("info proc exe",to_string=True)
         procname = re.search("exe.*",data).group().split("=")[1][2:-1]
     except:
-        if gdb.objfiles() :
-            procname = gdb.objfiles()[0].filename
+        data = gdb.execute("info files",to_string=True)
+        if data:
+            procname = re.search('Symbols from "(.*)"',data).group(1)
     if procname and relative :
         return procname.split("/")[-1]
     return procname
