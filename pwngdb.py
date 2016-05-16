@@ -107,10 +107,7 @@ class PwnCmd(object):
 
     def got(self):
         """ Print the got table """
-        try :
-            processname = getprocname()
-        except :
-            processname = gdb.objfiles()[0].filename
+        processname = getprocname()
         if processname :
             cmd = "objdump -R "
             if iscplus :
@@ -119,28 +116,24 @@ class PwnCmd(object):
             got = subprocess.check_output(cmd,shell=True)[:-2].decode('utf8')
             print(got)
         else :
-            print("No such program")
+            print("No current process or executable file specified." )
 
     def dyn(self):
         """ Print dynamic section """
-        try :
-            processname = getprocname()
-        except :
-            processname = gdb.objfiles()[0].filename
+        processname = getprocname()
         if processname :
             dyn = subprocess.check_output("readelf -d " + processname,shell=True).decode('utf8')
             print(dyn)
         else :
-            print("No such program")
+            print("No current process or executable file specified." )
 
     def rop(self):
         """ ROPgadget """
-        try :
-            procname = getprocname()
-        except :
-            procname = gdb.objfiles()[0].filename
+        procname = getprocname()
         if procname :
             subprocess.call("ROPgadget --binary " + procname,shell=True)
+        else :
+            print("No current process or executable file specified." )
 
     def findcall(self,*arg):
         """ Find some function call """
@@ -151,22 +144,19 @@ class PwnCmd(object):
     def at(self,*arg):
         """ Attach by processname """
         (processname,) = normalize_argv(arg,1)
-        try :
+        if not processname :
+            processname = getprocname(relative=True)
             if not processname :
-                processname = gdb.objfiles()[0].filename.split("/")[-1]
-            if processname :
-                try :
-                    pidlist = subprocess.check_output("pidof " + processname,shell=True).decode('utf8').split()
-                    gdb.execute("attach " + pidlist[0])
-                except :
-                    print( "No such process" )
+                print("Attaching program: ")
+                print("No executable file specified.")
+                print("Use the \"file\" or \"exec-file\" command.")
+                return
+        try :
+            print("Attaching to %s ..." % processname)
+            pidlist = subprocess.check_output("pidof " + processname,shell=True).decode('utf8').split()
+            gdb.execute("attach " + pidlist[0])
         except :
-            print( "Attaching program: " )
-            print( "No executable file specified." )
-            print( "Use the \"file\" or \"exec-file\" command." )   
-            return 
-        gdb.execute("set print asm-demangle on") 
-
+            print( "No such process" )
 
     def bcall(self,*arg):
         """ Set the breakpoint at some function call """
@@ -531,7 +521,7 @@ def procmap():
         return "error"
 
 def iscplus():
-    name = gdb.objfiles()[0].filename
+    name = getprocname()
     data = subprocess.check_output("readelf -s " + name,shell=True).decode('utf8')
     if "CXX" in data :
         return True
@@ -539,9 +529,16 @@ def iscplus():
         return False
 
 
-def getprocname():
-    data = gdb.execute("info proc exe",to_string=True)
-    procname = re.search("exe.*",data).group().split("=")[1][2:-1]
+def getprocname(relative=False):
+    procname = None
+    try:
+        data = gdb.execute("info proc exe",to_string=True)
+        procname = re.search("exe.*",data).group().split("=")[1][2:-1]
+    except:
+        if gdb.objfiles() :
+            procname = gdb.objfiles()[0].filename
+    if procname and relative :
+        return procname.split("/")[-1]
     return procname
 
 def libcbase():
@@ -1107,3 +1104,5 @@ pwncmd = PwnCmd()
 PwngdbCmd()
 for cmd in pwncmd.commands :
     PwngdbAlias(cmd,"pwngdb %s" % cmd)
+
+gdb.execute("set print asm-demangle on") 
