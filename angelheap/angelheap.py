@@ -42,6 +42,14 @@ capsize = 0
 word = ""
 arch = ""
 
+def init_angelheap():
+    global allocmemoryarea
+    global freerecord
+    
+    dis_trace_malloc()
+    allocmemoryarea = {}
+    freerecord = {} 
+
 class Malloc_bp_ret(gdb.FinishBreakpoint):
     global allocmemoryarea
     global freerecord
@@ -613,8 +621,6 @@ def trace_malloc():
     global memalignbp
     global reallocbp
     
-    dis_trace_malloc()
-
     mallocbp = Malloc_Bp_handler("*" + "_int_malloc")
     freebp = Free_Bp_handler("*" + "_int_free")
     memalignbp = Memalign_Bp_handler("*" + "_int_memalign")
@@ -626,24 +632,19 @@ def dis_trace_malloc():
     global freebp
     global memalignbp
     global reallocbp
-    global allocmemoryarea
-    global freerecord
 
     if mallocbp :
         mallocbp.delete()
+        mallocbp = None
     if freebp :   
         freebp.delete()
+        freebp = None
     if memalignbp :
         memalignbp.delete()
+        memalignbp = None
     if reallocbp :
         reallocbp.delete()
-    
-    mallocbp = None
-    freebp = None
-    memalignbp = None
-    reallocbp = None
-    allocmemoryarea = {}
-    freerecord = {} 
+        reallocbp = None
  
 def find_overlap(chunk,bins):
     is_overlap = False
