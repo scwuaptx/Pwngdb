@@ -9,8 +9,6 @@ directory       = path.expanduser(directory)
 directory       = path.abspath(directory)
 sys.path.append(directory)
 
-#from angelheap import *
-
 # arch
 capsize = 0
 word = ""

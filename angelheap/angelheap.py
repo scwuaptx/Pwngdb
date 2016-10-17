@@ -6,42 +6,38 @@ import subprocess
 import re
 import copy
 
+# main_arena
 main_arena = 0
-main_arena_off = 0 #You need to modify it if libc is stripd
-main_arena_off_32 = 0x1b7840  #You need to modify it 
+main_arena_off = 0 
+
+# chunks
 top = {}
-have_symbol = True
-_int_malloc_off = 0x81870 # You need to modify it
-_int_malloc_off_32 = 0  # You need to modfiy it
-_int_free_off = 0x80630 # You need to modify it
-_int_free_off_32 = 0 # You need to modify it
-_int_memalign_off = 0
-_int_memalign_off_32 = 0
-malloc_off = 0 # You need to modify it
-free_off = 0 # You need to modify it
-malloc_off_32 = 0x73260 # You need to modify it
-free_off_32 = 0x73880 # You need to modify it
-memalign_off = 0
-memalign_off_32 = 0
-last_remainder = {}
 fastbinsize = 10
 fastbin = []
-freememoryarea = {} #using in parse
-allocmemoryarea = {}
-freerecord = {} # using in trace
+last_remainder = {}
 unsortbin = []
 smallbin = {}  #{size:bin}
 largebin = {}
+
+# chunk recording
+freememoryarea = {} #using in parse
+allocmemoryarea = {}
+freerecord = {} # using in trace
+
+# setting for tracing memory allocation
 tracelargebin = True
-mallocbp = None
-freebp = None
-memalignbp = None
-reallocbp = None
 inmemalign = False
 inrealloc = False
 print_overlap = True
 DEBUG = True  #debug msg (free and malloc) if you want
 
+# breakpoints for tracing 
+mallocbp = None
+freebp = None
+memalignbp = None
+reallocbp = None
+
+# architecture setting
 capsize = 0
 word = ""
 arch = ""
@@ -106,10 +102,11 @@ class Malloc_Bp_handler(gdb.Breakpoint):
             reg = "$rsi"
             arg = int(gdb.execute("info register " + reg,to_string=True).split()[1].strip(),16)
         else :
-            arg = int(gdb.execute("x/wx $esp+8" ,to_string=True).split(":")[1].strip(),16)
+            # for _int_malloc in x86's glibc (unbuntu 14.04 & 16.04), size is stored in edx
+            reg = "$edx"
+            arg = int(gdb.execute("info register " + reg,to_string=True).split()[1].strip(),16)
         Malloc_bp_ret(arg)
         return False
-
 
 class Free_bp_ret(gdb.FinishBreakpoint):
     def __init__(self):
@@ -119,7 +116,6 @@ class Free_bp_ret(gdb.FinishBreakpoint):
     def stop(self):
         Malloc_consolidate()
         return False
-
 
 class Free_Bp_handler(gdb.Breakpoint):
 
@@ -136,7 +132,9 @@ class Free_Bp_handler(gdb.Breakpoint):
             reg = "$rsi"
             result = int(gdb.execute("info register " + reg,to_string=True).split()[1].strip(),16) + 0x10
         else :
-            result = int(gdb.execute("x/wx $esp+8" ,to_string=True).split(":")[1].strip(),16) + 0x8
+            # for _int_free in x86's glibc (unbuntu 14.04 & 16.04), chunk address is stored in edx
+            reg = "$edx"
+            result = int(gdb.execute("info register " + reg,to_string=True).split()[1].strip(),16) + 0x8
         chunk = {}
         if inmemalign or inrealloc:
             Update_alloca()
@@ -614,54 +612,38 @@ def trace_malloc():
     global freebp
     global memalignbp
     global reallocbp
+    
+    dis_trace_malloc()
 
     mallocbp = Malloc_Bp_handler("*" + "_int_malloc")
     freebp = Free_Bp_handler("*" + "_int_free")
     memalignbp = Memalign_Bp_handler("*" + "_int_memalign")
     reallocbp = Realloc_Bp_handler("*" + "_int_realloc")
     get_heap_info()
-"""
-    if not have_symbol :
-        libc = libcbase()
-        if capsize == 0 :
-            arch = getarch()
-        if capsize == 8 :
-            if _int_malloc_off != 0 :
-                malloc_addr = libc + _int_malloc_off
-                free_addr = libc + _int_free_off
-                memalign_addr = libc + memalign_off
-            else :
-                malloc_addr = libc + malloc_off
-                free_addr = libc + free_off
-        else :
-            if _int_malloc_off_32 != 0 :
-                malloc_addr = libc + _int_malloc_off_32
-                free_addr = libc + _int_free_off_32
-                memalign_addr = libc + memalign_off_32
-            else :
-                malloc_addr = libc + malloc_off_32
-                free_addr = libc + free_off_32
-        mallocbp = Malloc_Bp_handler("*" + hex(malloc_addr))
-
-        freebp = Free_Bp_handler("*" + hex(free_addr))
-        memalignbp = Memalign_Bp_handler("*" + hex(memalign_addr))
-    else :
-"""
 
 def dis_trace_malloc():
     global mallocbp
     global freebp
     global memalignbp
+    global reallocbp
+    global allocmemoryarea
+    global freerecord
 
-    if mallocbp and freebp  :   
+    if mallocbp :
         mallocbp.delete()
+    if freebp :   
         freebp.delete()
-        if memalignbp :
-            memalignbp.delete()
-        mallocbp = None
-        freebp = None
-        memalignbp = None
-        allocmemoryarea = {}
+    if memalignbp :
+        memalignbp.delete()
+    if reallocbp :
+        reallocbp.delete()
+    
+    mallocbp = None
+    freebp = None
+    memalignbp = None
+    reallocbp = None
+    allocmemoryarea = {}
+    freerecord = {} 
  
 def find_overlap(chunk,bins):
     is_overlap = False

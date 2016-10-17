@@ -2,6 +2,7 @@
 def to_int(val):
     """
     Convert a string to int number
+    from https://github.com/longld/peda
     """
     try:
         return int(str(val), 0)
@@ -11,6 +12,7 @@ def to_int(val):
 def normalize_argv(args, size=0):
     """
     Normalize argv to list with predefined length
+    from https://github.com/longld/peda
     """
     args = list(args)
     for (idx, val) in enumerate(args):
