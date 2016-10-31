@@ -664,7 +664,7 @@ def chunkinfo(victim):
         cmd = "x/" + word + hex(chunkaddr)
         prev_size = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
         cmd = "x/" + word + hex(chunkaddr + capsize*1)
-        size = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16) & 0xfffffffffffffff8
+        size = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
         cmd = "x/" + word + hex(chunkaddr + capsize*2)
         fd = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
         cmd = "x/" + word + hex(chunkaddr + capsize*3)
@@ -693,7 +693,7 @@ def chunkinfo(victim):
             except :
                 print("\033[32mUnlinkable :\033[1;31m False (FD or BK is corruption) \033[37m ")
         print("\033[32mprev_size :\033[37m 0x%x                  " % prev_size)
-        print("\033[32msize :\033[37m 0x%x                  " % size)
+        print("\033[32msize :\033[37m 0x%x                  " % (size & 0xfffffffffffffff8))
         print("\033[32mprev_inused :\033[37m %x                    " % (size & 1) )
         print("\033[32mis_mmap :\033[37m %x                    " % (size & 2) )
         print("\033[32mnon_mainarea :\033[37m %x                     " % (size & 4) )
