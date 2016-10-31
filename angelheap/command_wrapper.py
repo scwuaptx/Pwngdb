@@ -26,6 +26,11 @@ class AngelHeapCmd(object):
         """ Print some information of heap """
         angelheap.putheapinfo()
 
+    def chunkinfo(self,*arg):
+        """ Print chunk information of victim"""
+        (victim,) = normalize_argv(arg,1)
+        angelheap.chunkinfo(victim)
+
     def printfastbin(self):
         """ Print the fastbin """
         angelheap.putfastbin()

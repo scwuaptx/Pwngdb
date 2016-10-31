@@ -656,6 +656,46 @@ def find_overlap(chunk,bins):
         is_overlap = True
     return is_overlap
 
+def chunkinfo(victim):
+    if capsize == 0 :
+        arch = getarch()
+    chunkaddr = victim - capsize*2
+    try :
+        cmd = "x/" + word + hex(chunkaddr)
+        prev_size = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
+        cmd = "x/" + word + hex(chunkaddr + capsize*1)
+        size = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16) & 0xfffffffffffffff8
+        cmd = "x/" + word + hex(chunkaddr + capsize*2)
+        fd = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
+        cmd = "x/" + word + hex(chunkaddr + capsize*3)
+        bk = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
+        cmd = "x/" + word + hex(chunkaddr + size + capsize)
+        nextsize = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
+        print("==================================")
+        print("            Chunk info            ")
+        print("==================================")
+        if(nextsize & 1):
+            print("\033[32mStatus : \033[31m Used \033[37m")
+        else :
+            print("\033[32mStatus : \033[1;34m Freed \033[37m")
+        print("\033[32mprev_size :\033[37m 0x%x                  " % prev_size)
+        print("\033[32msize :\033[37m 0x%x                  " % size)
+        print("\033[32mprev_inused :\033[37m %x                    " % (size & 1) )
+        print("\033[32mis_mmap :\033[37m %x                    " % (size & 2) )
+        print("\033[32mnon_mainarea :\033[37m %x                     " % (size & 4) )
+        print("\033[32mfd :\033[37m 0x%x                  " % fd)
+        print("\033[32mbk :\033[37m 0x%x                  " % bk)
+        if size >= 512*(capsize/4) :
+            cmd = "x/" + word + hex(chunkaddr + capsize*4)
+            fd_nextsize = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
+            cmd = "x/" + word + hex(chunkaddr + capsize*5)
+            bk_nextsize = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
+            print("\033[32mfd_nextsize :\033[37m 0x%x  " % fd_nextsize)
+            print("\033[32mbk_nextsize :\033[37m 0x%x  " % bk_nextsize) 
+    except :
+        print("Can't access memory")
+
+
 def putfastbin():
     if capsize == 0 :
         arch = getarch()
