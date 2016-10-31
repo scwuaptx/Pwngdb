@@ -659,7 +659,7 @@ def find_overlap(chunk,bins):
 def chunkinfo(victim):
     if capsize == 0 :
         arch = getarch()
-    chunkaddr = victim - capsize*2
+    chunkaddr = victim
     try :
         cmd = "x/" + word + hex(chunkaddr)
         prev_size = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
@@ -678,6 +678,20 @@ def chunkinfo(victim):
             print("\033[32mStatus : \033[31m Used \033[37m")
         else :
             print("\033[32mStatus : \033[1;34m Freed \033[37m")
+            try :
+                cmd = "x/" + word + hex(fd + capsize*3)
+                fd_bk = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
+                cmd = "x/" + word + hex(bk + capsize*2)
+                bk_fd = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
+                if (chunkaddr == fd_bk ) and (chunkaddr == bk_fd) :
+                    print("\033[32mUnlinkable :\033[1;33m True\033[37m")
+                else :
+                    if chunkaddr != fd_bk :
+                        print("\033[32mUnlinkable :\033[1;31m False (FD->BK(0x%x) != (0x%x)) \033[37m " % (fd_bk,chunkaddr))
+                    else :
+                        print("\033[32mUnlinkable :\033[1;31m False (BK->FD(0x%x) != (0x%x)) \033[37m " % (bk_fd,chunkaddr))
+            except :
+                print("\033[32mUnlinkable :\033[1;31m False (FD or BK is corruption) \033[37m ")
         print("\033[32mprev_size :\033[37m 0x%x                  " % prev_size)
         print("\033[32msize :\033[37m 0x%x                  " % size)
         print("\033[32mprev_inused :\033[37m %x                    " % (size & 1) )
