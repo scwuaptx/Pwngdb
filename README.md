@@ -51,6 +51,9 @@ If you want to use the feature of heapinfo and tracemalloc , you need to modify 
 
 ## Screenshot
 
++ Chunkinfo
+
+![chunkinfo](http://i.imgur.com/6P6zOPH.png)
 + Heapinfo
 
 ![heapinfo](http://i.imgur.com/xhTc8Gv.png)
