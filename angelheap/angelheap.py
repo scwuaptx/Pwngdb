@@ -669,7 +669,7 @@ def chunkinfo(victim):
         fd = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
         cmd = "x/" + word + hex(chunkaddr + capsize*3)
         bk = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
-        cmd = "x/" + word + hex(chunkaddr + size + capsize)
+        cmd = "x/" + word + hex(chunkaddr + (size & 0xfffffffffffffff8) + capsize)
         nextsize = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
         print("==================================")
         print("            Chunk info            ")
