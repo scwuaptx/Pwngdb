@@ -14,6 +14,7 @@ main_arena_off = 0
 top = {}
 fastbinsize = 10
 fastbin = []
+fastchunk = [] #save fastchunk address for chunkinfo check
 last_remainder = {}
 unsortbin = []
 smallbin = {}  #{size:bin}
@@ -407,10 +408,12 @@ def get_top_lastremainder():
 def get_fast_bin():
     global main_arena
     global fastbin
+    global fastchunk
     global fastbinsize
     global freememoryarea
 
     fastbin = []
+    fastchunk = []
     #freememoryarea = []
     if capsize == 0 :
         arch = getarch()
@@ -420,6 +423,7 @@ def get_fast_bin():
         is_overlap = (None,None)
         cmd = "x/" + word  + hex(main_arena + i*capsize + 8)
         chunk["addr"] = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
+        fastchunk.append(chunk["addr"])
         while chunk["addr"] and not is_overlap[0]:
             cmd = "x/" + word + hex(chunk["addr"]+capsize*1)
             try :
@@ -657,10 +661,12 @@ def find_overlap(chunk,bins):
     return is_overlap
 
 def chunkinfo(victim):
+    global fastchunk
     if capsize == 0 :
         arch = getarch()
     chunkaddr = victim
     try :
+        get_heap_info()
         cmd = "x/" + word + hex(chunkaddr)
         prev_size = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
         cmd = "x/" + word + hex(chunkaddr + capsize*1)
@@ -675,9 +681,12 @@ def chunkinfo(victim):
         print("            Chunk info            ")
         print("==================================")
         if(nextsize & 1):
-            print("\033[32mStatus : \033[31m Used \033[37m")
+            if chunkaddr in fastchunk :
+                print("\033[1;32mStatus : \033[1;34m Freed (fast) \033[37m")
+            else :
+                print("\033[1;32mStatus : \033[31m Used \033[37m")
         else :
-            print("\033[32mStatus : \033[1;34m Freed \033[37m")
+            print("\033[1;32mStatus : \033[1;34m Freed \033[37m")
             try :
                 cmd = "x/" + word + hex(fd + capsize*3)
                 fd_bk = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
