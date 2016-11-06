@@ -48,6 +48,10 @@ class PwnCmd(object):
         """ Get canary value """
         print("\033[34m" + "canary : " + "\033[37m" + hex(getcanary()))
 
+    def fmtarg(self,*arg):
+        (addr,)= normalize_argv(arg,1)
+        getfmtarg(addr)
+
     def off(self,*arg) :
         """ Calculate the offset of libc """
         #(sym,)= normalize_argv(arg,1)
@@ -370,6 +374,21 @@ def get_reg(reg):
     cmd = "info register " + reg
     result = int(gdb.execute(cmd,to_string=True).split()[1].strip(),16)
     return result
+
+
+def getfmtarg(addr):
+    if capsize == 0 :
+        getarch()
+    if arch == "i386" :
+        start = get_reg("esp")
+        idx = (addr- start)/4
+        print("The index of format argument : %d" % idx)
+    elif arch == "x86-64" :
+        start = get_reg("rsp")
+        idx = (addr - start)/8 + 6
+        print("The index of format argument : %d" % idx)
+    else :
+        print("Not support the arch")
 
 pwncmd = PwnCmd()
 PwngdbCmd()

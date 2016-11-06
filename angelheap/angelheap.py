@@ -677,10 +677,11 @@ def chunkinfo(victim):
         bk = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
         cmd = "x/" + word + hex(chunkaddr + (size & 0xfffffffffffffff8) + capsize)
         nextsize = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
+        status = nextsize & 1    
         print("==================================")
         print("            Chunk info            ")
         print("==================================")
-        if(nextsize & 1):
+        if status:
             if chunkaddr in fastchunk :
                 print("\033[1;32mStatus : \033[1;34m Freed (fast) \033[37m")
             else :
@@ -706,8 +707,9 @@ def chunkinfo(victim):
         print("\033[32mprev_inused :\033[37m %x                    " % (size & 1) )
         print("\033[32mis_mmap :\033[37m %x                    " % (size & 2) )
         print("\033[32mnon_mainarea :\033[37m %x                     " % (size & 4) )
-        print("\033[32mfd :\033[37m 0x%x                  " % fd)
-        print("\033[32mbk :\033[37m 0x%x                  " % bk)
+        if not status :
+            print("\033[32mfd :\033[37m 0x%x                  " % fd)
+            print("\033[32mbk :\033[37m 0x%x                  " % bk)
         if size >= 512*(capsize/4) :
             cmd = "x/" + word + hex(chunkaddr + capsize*4)
             fd_nextsize = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
