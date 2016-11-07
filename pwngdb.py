@@ -22,12 +22,15 @@ class PwnCmd(object):
 
     def libc(self):
         """ Get libc base """
-        print("\033[34m" + "libc : " + "\033[37m" + hex(libcbase()))
+        libcbs = libcbase()
+        gdb.execute("set $libc=%s" % hex(libcbs))
+        print("\033[34m" + "libc : " + "\033[37m" + hex(libcbs))
 
     def heap(self):
         """ Get heapbase """
         heapbase = getheapbase()
         if heapbase :
+            gdb.execute("set $heap=%s" % hex(heapbase))
             print("\033[34m" + "heapbase : " + "\033[37m" + hex(heapbase))
         else :
             print("heap not found")
@@ -38,7 +41,9 @@ class PwnCmd(object):
 
     def codebase(self):
         """ Get text base """
-        print("\033[34m" + "codebase : " + "\033[37m" + hex(codeaddr()[0]))
+        codebs = codeaddr()[0]
+        gdb.execute("set $code=%s" % hex(codebs))
+        print("\033[34m" + "codebase : " + "\033[37m" + hex(codebs))
 
     def tls(self):
         """ Get tls base """

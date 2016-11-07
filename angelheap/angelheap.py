@@ -721,6 +721,16 @@ def chunkinfo(victim):
         print("Can't access memory")
 
 
+def force(target):
+    if capsize == 0 :
+        arch = getarch()
+    get_heap_info()
+    if target % capsize != 0 :
+        print("Not alignment")
+    else :
+        nb = target - top["addr"] - capsize*2
+        print("nb = %d" % nb)
+
 def putfastbin():
     if capsize == 0 :
         arch = getarch()

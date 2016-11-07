@@ -31,6 +31,11 @@ class AngelHeapCmd(object):
         (victim,) = normalize_argv(arg,1)
         angelheap.chunkinfo(victim)
 
+    def force(self,*arg):
+        """ Calculate the nb in the house of force """
+        (target,) = normalize_argv(arg,1)
+        angelheap.force(target)
+    
     def printfastbin(self):
         """ Print the fastbin """
         angelheap.putfastbin()

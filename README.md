@@ -41,6 +41,9 @@ If you want to use the feature of heapinfo and tracemalloc , you need to modify 
 + `tls` : Print the thread local storage address
 + `at` : Attach by process name
 + `findsyscall` : Find the syscall
++ `fmtarg` : Calculate the index of format string
+	+ You need to stop on printf which has vulnerability.
++ `force` : Calculate the nb in the house of force.
 + `heapinfo` : Print some infomation of heap
 + `chunkinfo`: Print the infomation of chunkinfo
     + chunkinfo (Address of victim)
