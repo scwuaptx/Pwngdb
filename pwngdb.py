@@ -23,14 +23,13 @@ class PwnCmd(object):
     def libc(self):
         """ Get libc base """
         libcbs = libcbase()
-        gdb.execute("set $libc=%s" % hex(libcbs))
+
         print("\033[34m" + "libc : " + "\033[37m" + hex(libcbs))
 
     def heap(self):
         """ Get heapbase """
         heapbase = getheapbase()
         if heapbase :
-            gdb.execute("set $heap=%s" % hex(heapbase))
             print("\033[34m" + "heapbase : " + "\033[37m" + hex(heapbase))
         else :
             print("heap not found")
@@ -42,7 +41,6 @@ class PwnCmd(object):
     def codebase(self):
         """ Get text base """
         codebs = codeaddr()[0]
-        gdb.execute("set $code=%s" % hex(codebs))
         print("\033[34m" + "codebase : " + "\033[37m" + hex(codebs))
 
     def tls(self):
@@ -135,6 +133,10 @@ class PwnCmd(object):
             print("Attaching to %s ..." % processname)
             pidlist = subprocess.check_output("pidof " + processname,shell=True).decode('utf8').split()
             gdb.execute("attach " + pidlist[0])
+            getheapbase()
+            libcbase()
+            codeaddr()
+            ldbase()
         except :
             print( "No such process" )
 
@@ -271,6 +273,7 @@ def libcbase():
     data = re.search(".*libc.*\.so",infomap)
     if data :
         libcaddr = data.group().split("-")[0]
+        gdb.execute("set $libc=%s" % hex(int(libcaddr,16)))
         return int(libcaddr,16)
     else :
         return 0
@@ -280,6 +283,7 @@ def ldbase():
     data = re.search(".*ld.*\.so",infomap)
     if data :
         ldaddr = data.group().split("-")[0]
+        gdb.execute("set $ld=%s" % hex(int(ldaddr,16)))
         return int(ldaddr,16)
     else :
         return 0
@@ -289,6 +293,7 @@ def getheapbase():
     data = re.search(".*heap\]",infomap)
     if data :
         heapbase = data.group().split("-")[0]
+        gdb.execute("set $heap=%s" % hex(int(heapbase,16)))
         return int(heapbase,16)
     else :
         return 0
@@ -301,6 +306,7 @@ def codeaddr(): # ret (start,end)
     if data :
         codebaseaddr = data[0].split("-")[0]
         codeend = data[0].split("-")[1].split()[0]
+        gdb.execute("set $code=%s" % hex(int(codebaseaddr,16)))
         return (int(codebaseaddr,16),int(codeend,16))
     else :
         return (0,0)
