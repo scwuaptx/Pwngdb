@@ -776,7 +776,7 @@ def mergeinfo(victim):
                             print("\033[32mUnlink info : \033[1;33m0x%x\033[37m" % prev_chunk)
                             unlinkable(prev_chunk)
                         elif not next_status : #if next chunk is freed
-                            print("The chunk and 0x%x will merge into \033[1;33m0x%x\033[37m" % (next_chunk,prev_chunk))
+                            print("The chunk and \033[1;33m0x%x\033[0m will merge into \033[1;33m0x%x\033[37m" % (next_chunk,prev_chunk))
                             print("\033[32mUnlink info : \033[1;33m0x%x\033[37m" % prev_chunk)
                             unlinkable(prev_chunk)
                             print("\033[32mUnlink info : \033[1;33m0x%x\033[37m" % next_chunk)
