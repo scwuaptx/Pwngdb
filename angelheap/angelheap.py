@@ -695,11 +695,14 @@ def chunkinfo(victim):
                 bk_fd = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
                 if (chunkaddr == fd_bk ) and (chunkaddr == bk_fd) :
                     print("\033[32mUnlinkable :\033[1;33m True\033[37m")
+                    print("\033[32mResult of unlink :\033[37m")
+                    print("\033[32m      \033[1;34m FD->bk (\033[1;33m*0x%x\033[1;34m) = BK (\033[1;37m0x%x ->\033[1;33m 0x%x\033[1;34m)\033[37m " % (fd+capsize*3,fd_bk,bk))
+                    print("\033[32m      \033[1;34m BK->fd (\033[1;33m*0x%x\033[1;34m) = FD (\033[1;37m0x%x ->\033[1;33m 0x%x\033[1;34m)\033[37m " % (bk+capsize*2,bk_fd,fd))
                 else :
                     if chunkaddr != fd_bk :
-                        print("\033[32mUnlinkable :\033[1;31m False (FD->BK(0x%x) != (0x%x)) \033[37m " % (fd_bk,chunkaddr))
+                        print("\033[32mUnlinkable :\033[1;31m False (FD->bk(0x%x) != (0x%x)) \033[37m " % (fd_bk,chunkaddr))
                     else :
-                        print("\033[32mUnlinkable :\033[1;31m False (BK->FD(0x%x) != (0x%x)) \033[37m " % (bk_fd,chunkaddr))
+                        print("\033[32mUnlinkable :\033[1;31m False (BK->fd(0x%x) != (0x%x)) \033[37m " % (bk_fd,chunkaddr))
             except :
                 print("\033[32mUnlinkable :\033[1;31m False (FD or BK is corruption) \033[37m ")
         print("\033[32mprev_size :\033[37m 0x%x                  " % prev_size)
