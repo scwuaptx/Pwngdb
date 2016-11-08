@@ -45,8 +45,12 @@ If you want to use the feature of heapinfo and tracemalloc , you need to modify 
 	+ You need to stop on printf which has vulnerability.
 + `force` : Calculate the nb in the house of force.
 + `heapinfo` : Print some infomation of heap
-+ `chunkinfo`: Print the infomation of chunkinfo
++ `chunkinfo`: Print the infomation of chunk
     + chunkinfo (Address of victim)
++ `chunkptr` : Print the infomation of chunk 
+	+ chunkptr (Address of user ptr)
++ `mergeinfo` : Print the infomation of merge
+	+ mergeinfo (Address of victim)
 + `printfastbin` : Print some infomation of fastbin
 + `tracemalloc on` : Trace the malloc and free and detect some error .
 	+ You need to run the process first than `tracemalloc on`, it will record all of the malloc and free.
@@ -56,7 +60,10 @@ If you want to use the feature of heapinfo and tracemalloc , you need to modify 
 
 + Chunkinfo
 
-![chunkinfo](http://i.imgur.com/6P6zOPH.png)
+![chunkinfo](http://i.imgur.com/gtQuIsL.png)
++ Mergeinfo
+
+![chunkinfo](http://i.imgur.com/TjWkzGc.png)
 + Heapinfo
 
 ![heapinfo](http://i.imgur.com/xhTc8Gv.png)

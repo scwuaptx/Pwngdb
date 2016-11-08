@@ -31,6 +31,16 @@ class AngelHeapCmd(object):
         (victim,) = normalize_argv(arg,1)
         angelheap.chunkinfo(victim)
 
+    def chunkptr(self,*arg):
+        """ Print chunk information of user ptr"""
+        (ptr,) = normalize_argv(arg,1)
+        angelheap.chunkptr(ptr)
+
+    def mergeinfo(self,*arg):
+        """ Print merge information of victim"""
+        (victim,) = normalize_argv(arg,1)
+        angelheap.mergeinfo(victim)
+
     def force(self,*arg):
         """ Calculate the nb in the house of force """
         (target,) = normalize_argv(arg,1)

@@ -660,6 +660,33 @@ def find_overlap(chunk,bins):
         is_overlap = True
     return is_overlap
 
+def unlinkable(chunkaddr,fd = None ,bk = None):
+    if capsize == 0 :
+        arch = getarch()
+    try :
+        if not fd :
+            cmd = "x/" + word + hex(chunkaddr + capsize*2)
+            fd = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
+        if not bk :
+            cmd = "x/" + word + hex(chunkaddr + capsize*3)
+            bk = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
+        cmd = "x/" + word + hex(fd + capsize*3)
+        fd_bk = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
+        cmd = "x/" + word + hex(bk + capsize*2)
+        bk_fd = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
+        if (chunkaddr == fd_bk ) and (chunkaddr == bk_fd) :
+            print("\033[32mUnlinkable :\033[1;33m True\033[37m")
+            print("\033[32mResult of unlink :\033[37m")
+            print("\033[32m      \033[1;34m FD->bk (\033[1;33m*0x%x\033[1;34m) = BK (\033[1;37m0x%x ->\033[1;33m 0x%x\033[1;34m)\033[37m " % (fd+capsize*3,fd_bk,bk))
+            print("\033[32m      \033[1;34m BK->fd (\033[1;33m*0x%x\033[1;34m) = FD (\033[1;37m0x%x ->\033[1;33m 0x%x\033[1;34m)\033[37m " % (bk+capsize*2,bk_fd,fd))
+        else :
+            if chunkaddr != fd_bk :
+                print("\033[32mUnlinkable :\033[1;31m False (FD->bk(0x%x) != (0x%x)) \033[37m " % (fd_bk,chunkaddr))
+            else :
+                print("\033[32mUnlinkable :\033[1;31m False (BK->fd(0x%x) != (0x%x)) \033[37m " % (bk_fd,chunkaddr))
+    except :
+        print("\033[32mUnlinkable :\033[1;31m False (FD or BK is corruption) \033[37m ")
+
 def chunkinfo(victim):
     global fastchunk
     if capsize == 0 :
@@ -688,23 +715,7 @@ def chunkinfo(victim):
                 print("\033[1;32mStatus : \033[31m Used \033[37m")
         else :
             print("\033[1;32mStatus : \033[1;34m Freed \033[37m")
-            try :
-                cmd = "x/" + word + hex(fd + capsize*3)
-                fd_bk = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
-                cmd = "x/" + word + hex(bk + capsize*2)
-                bk_fd = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
-                if (chunkaddr == fd_bk ) and (chunkaddr == bk_fd) :
-                    print("\033[32mUnlinkable :\033[1;33m True\033[37m")
-                    print("\033[32mResult of unlink :\033[37m")
-                    print("\033[32m      \033[1;34m FD->bk (\033[1;33m*0x%x\033[1;34m) = BK (\033[1;37m0x%x ->\033[1;33m 0x%x\033[1;34m)\033[37m " % (fd+capsize*3,fd_bk,bk))
-                    print("\033[32m      \033[1;34m BK->fd (\033[1;33m*0x%x\033[1;34m) = FD (\033[1;37m0x%x ->\033[1;33m 0x%x\033[1;34m)\033[37m " % (bk+capsize*2,bk_fd,fd))
-                else :
-                    if chunkaddr != fd_bk :
-                        print("\033[32mUnlinkable :\033[1;31m False (FD->bk(0x%x) != (0x%x)) \033[37m " % (fd_bk,chunkaddr))
-                    else :
-                        print("\033[32mUnlinkable :\033[1;31m False (BK->fd(0x%x) != (0x%x)) \033[37m " % (bk_fd,chunkaddr))
-            except :
-                print("\033[32mUnlinkable :\033[1;31m False (FD or BK is corruption) \033[37m ")
+            unlinkable(chunkaddr,fd,bk)
         print("\033[32mprev_size :\033[37m 0x%x                  " % prev_size)
         print("\033[32msize :\033[37m 0x%x                  " % (size & 0xfffffffffffffff8))
         print("\033[32mprev_inused :\033[37m %x                    " % (size & 1) )
@@ -723,6 +734,70 @@ def chunkinfo(victim):
     except :
         print("Can't access memory")
 
+def chunkptr(ptr):
+    if capsize == 0 :
+        arch = getarch()
+    chunkinfo(ptr-capsize*2) 
+
+def mergeinfo(victim):
+    global fastchunk
+    if capsize == 0 :
+        arch = getarch()
+    chunkaddr = victim
+    try :
+        get_heap_info()
+        print("==================================")
+        print("            Merge info            ")
+        print("==================================")
+        cmd = "x/" + word + hex(chunkaddr)
+        prev_size = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
+        cmd = "x/" + word + hex(chunkaddr + capsize*1)
+        size = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
+        cmd = "x/" + word + hex(chunkaddr + (size & 0xfffffffffffffff8) + capsize)
+        nextsize = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
+        status = nextsize & 1
+        if status :
+            if chunkaddr in fastchunk :
+                print("The chunk is freed")
+            else :
+                if (size & 0xfffffffffffffff8) <= 0x80 :
+                    print("The chunk will be a\033[32m fastchunk\033[37m")
+                else :
+                    prev_status = size & 1
+                    next_chunk = chunkaddr + (size & 0xfffffffffffffff8)
+                    cmd = "x/" + word + hex(next_chunk + (nextsize & 0xfffffffffffffff8) + capsize)
+                    if next_chunk != top["addr"] :
+                        next_nextsize = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
+                        next_status = next_nextsize & 1
+                    if not prev_status: #if prev chunk is freed
+                        prev_chunk = chunkaddr - prev_size
+                        if next_chunk == top["addr"] : #if next chunk is top
+                            print("The chunk will merge into top , top will be \033[1;33m0x%x\033[37m " % prev_chunk)
+                            print("\033[32mUnlink info : \033[1;33m0x%x\033[37m" % prev_chunk)
+                            unlinkable(prev_chunk)
+                        elif not next_status : #if next chunk is freed
+                            print("The chunk and 0x%x will merge into \033[1;33m0x%x\033[37m" % (next_chunk,prev_chunk))
+                            print("\033[32mUnlink info : \033[1;33m0x%x\033[37m" % prev_chunk)
+                            unlinkable(prev_chunk)
+                            print("\033[32mUnlink info : \033[1;33m0x%x\033[37m" % next_chunk)
+                            unlinkable(next_chunk)
+                        else :
+                            print("The chunk will merge into \033[1;33m0x%x\033[37m" % prev_chunk)
+                            print("\033[32mUnlink info : \033[1;33m0x%x\033[37m" % prev_chunk)
+                            unlinkable(prev_chunk)
+                    else :
+                        if next_chunk == top["addr"] : #if next chunk is top
+                            print("The chunk will merge into top , top will be \033[1;34m0x%x\033[37m" % chunkaddr)
+                        elif not next_status : #if next chunk is freed
+                            print("The chunk will merge with \033[1;33m0x%x\033[37m" % next_chunk)
+                            print("\033[32mUnlink info : \033[1;33m0x%x\033[37m" % next_chunk)
+                            unlinkable(next_chunk)
+                        else :
+                            print("The chunk will not merge with other") 
+        else :
+            print("The chunk is freed")
+    except :
+        print("Can't access memory")
 
 def force(target):
     if capsize == 0 :
