@@ -52,13 +52,13 @@ class PwnCmd(object):
         print("\033[34m" + "canary : " + "\033[37m" + hex(getcanary()))
 
     def fmtarg(self,*arg):
-        (addr,)= normalize_argv(arg,1)
+        (addr,) = normalize_argv(arg,1)
         getfmtarg(addr)
 
     def off(self,*arg) :
         """ Calculate the offset of libc """
         #(sym,)= normalize_argv(arg,1)
-        sym = arg[0]
+        (sym,) = normalize_argv(arg,1)
         symaddr = getoff(sym)
         if symaddr == 0 :
             print("Not found the symbol")
