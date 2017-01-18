@@ -54,6 +54,14 @@ class AngelHeapCmd(object):
         """ Print the inuse chunk """
         angelheap.putinused()
 
+    def parseheap(self):
+        """ Parse heap """
+        heapbase = int(gdb.execute("heap",to_string=True).split("\x1b[37m")[1].strip(),16)
+        if heapbase :
+            angelheap.parse_heap(heapbase)
+        else :
+            print("heap not found")
+
 
 class AngelHeapCmdWrapper(gdb.Command):
     """ angelheap command wrapper """

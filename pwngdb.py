@@ -34,6 +34,7 @@ class PwnCmd(object):
         else :
             print("heap not found")
 
+
     def ld(self):
         """ Get ld.so base """
         print("\033[34m" + "ld : " + "\033[37m" + hex(ldbase()))

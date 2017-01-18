@@ -905,3 +905,37 @@ def putinused():
     for addr,(start,end,chunk) in allocmemoryarea.items() :
         print("0x%x," % (chunk["addr"]),end="")
     print("")
+
+
+def parse_heap(heapbase):
+    if capsize == 0 :
+        arch = getarch()
+    get_heap_info()
+    chunkaddr = heapbase
+    print('{:<18}{:<8}{:<8}{:<16}{:<18}{:<18}'.format('addr', 'prev', 'size', 'status', 'fd', 'bk'))
+    while chunkaddr != top["addr"] :
+        try :
+            cmd = "x/" + word + hex(chunkaddr)
+            prev_size = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
+            cmd = "x/" + word + hex(chunkaddr + capsize*1)
+            size = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
+            cmd = "x/" + word + hex(chunkaddr + capsize*2)
+            fd = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
+            cmd = "x/" + word + hex(chunkaddr + capsize*3)
+            bk = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
+            cmd = "x/" + word + hex(chunkaddr + (size & 0xfffffffffffffff8) + capsize)
+            nextsize = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
+            status = nextsize & 1 
+            size = size & 0xfffffffffffffff8
+            if status :
+                msg = "\033[31m Used \033[0m"
+                print('{:<18x}{:<8x}{:<8x}{:<16}{:>18}{:>18}'.format(chunkaddr, prev_size, size, msg, "None".center(18), "None".center(18)))
+            else :
+                msg = "\033[1;34m Freed \033[0m"
+                print('{:<18x}{:<8x}{:<8x}{:<16}{:>18x}{:>18x}'.format(chunkaddr, prev_size, size, msg, fd, bk))
+            chunkaddr = chunkaddr + (size & 0xfffffffffffffff8)
+            if chunkaddr > top["addr"] :
+                print("Corrupt ?!")
+                break 
+        except :
+            print("Corrupt ?!")

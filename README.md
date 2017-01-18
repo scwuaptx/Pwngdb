@@ -55,6 +55,7 @@ If you want to use the feature of heapinfo and tracemalloc , you need to modify 
 + `tracemalloc on` : Trace the malloc and free and detect some error .
 	+ You need to run the process first than `tracemalloc on`, it will record all of the malloc and free.
 	+ You can set the `DEBUG` in pwngdb.py , than it will print all of the malloc and free infomation such as the screeshot.
++ `parseheap` : Parse heap layout
 
 ## Screenshot
 
