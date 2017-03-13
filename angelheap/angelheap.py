@@ -912,7 +912,7 @@ def parse_heap(heapbase):
         arch = getarch()
     get_heap_info()
     chunkaddr = heapbase
-    print('{:<18}{:<8}{:<8}{:<16}{:<18}{:<18}'.format('addr', 'prev', 'size', 'status', 'fd', 'bk'))
+    print('\033[1;33m{:<20}{:<10}{:<10}{:<16}{:<18}{:<18}\033[0m'.format('addr', 'prev', 'size', 'status', 'fd', 'bk'))
     while chunkaddr != top["addr"] :
         try :
             cmd = "x/" + word + hex(chunkaddr)
@@ -930,16 +930,17 @@ def parse_heap(heapbase):
             if status :
                 if chunkaddr in fastchunk :
                     msg = "\033[1;34m Freed \033[0m"
-                    print('{:<18x}{:<8x}{:<8x}{:<16}{:>18x}{:>18}'.format(chunkaddr, prev_size, size, msg, fd, "None".center(18)))
+                    print('0x{:<18x}0x{:<8x}0x{:<8x}{:<16}{:>18x}{:>18}'.format(chunkaddr, prev_size, size, msg, fd, "None".center(18)))
                 else :
                     msg = "\033[31m Used \033[0m"
-                    print('{:<18x}{:<8x}{:<8x}{:<16}{:>18}{:>18}'.format(chunkaddr, prev_size, size, msg, "None".center(18), "None".center(18)))
+                    print('0x{:<18x}0x{:<8x}0x{:<8x}{:<16}{:>18}{:>18}'.format(chunkaddr, prev_size, size, msg, "None".center(18), "None".center(18)))
             else :
                 msg = "\033[1;34m Freed \033[0m"
-                print('{:<18x}{:<8x}{:<8x}{:<16}{:>18x}{:>18x}'.format(chunkaddr, prev_size, size, msg, fd, bk))
+                print('0x{:<18x}0x{:<8x}0x{:<8x}{:<16}{:>18x}{:>18x}'.format(chunkaddr, prev_size, size, msg, fd, bk))
             chunkaddr = chunkaddr + (size & 0xfffffffffffffff8)
             if chunkaddr > top["addr"] :
                 print("Corrupt ?!")
                 break 
         except :
             print("Corrupt ?!")
+            break
