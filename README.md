@@ -13,20 +13,7 @@ If you dont want to use gdb-peda , you can modify the gdbinit to remove it.
 
 ### Heapinfo 
 
-If you want to use the feature of heapinfo and tracemalloc , you need to modify some val of pwngdb.py
-
-+ heapinfo
-	+ `main_arena_off` : The offset of `main_arena` in glibc
-	+ `main_arena_off_32` : The offset of `main_arena` in glibc32
-+ tracemalloc
-	+ `main_arena_off` : The offset of `main_arena` in glibc
-	+ `main_arena_off_32` : The offset of `main_arena` in glibc32
-	+ `_int_malloc_off` : The offset of `_int_malloc_off` in glibc
-	+ `_int_malloc_off_32` ; The offset of `_int_malloc_off` in glibc32
-	+ `_int_free_off` : The offset of `_int_free_off` in glibc
-	+ `_int_free_off_32` :The offset of `_int_free_off` in glibc32
-	+ `malloc_off` : The offset of `malloc` in glibc
-	+ `free_off` : The offset of `free` in glibc
+If you want to use the feature of heapinfo and tracemalloc , you need to install libc debug file (libc6-dbg & libc6-dbg:i386 for debian package) 
 
 ## Features
 
@@ -68,6 +55,10 @@ If you want to use the feature of heapinfo and tracemalloc , you need to modify 
 + Heapinfo
 
 ![heapinfo](http://i.imgur.com/xhTc8Gv.png)
+
++ parseheap
+
+![parseheap](http://i.imgur.com/R7goaLF.png)
 
 + tracemalloc
 
