@@ -1,3 +1,4 @@
+from __future__ import print_function
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
@@ -5,7 +6,7 @@ import gdb
 import subprocess
 import re
 import copy
-
+import struct
 # main_arena
 main_arena = 0
 main_arena_off = 0 
@@ -42,6 +43,14 @@ reallocbp = None
 capsize = 0
 word = ""
 arch = ""
+
+
+def u32(data,fmt="<I"):
+    return struct.unpack(fmt,data)[0]
+
+
+def u64(data,fmt="<Q"):
+    return struct.unpack(fmt,data)[0]
 
 def init_angelheap():
     global allocmemoryarea
@@ -946,3 +955,45 @@ def parse_heap(heapbase):
         except :
             print("Corrupt ?!")
             break
+
+def fastbin_idx(size):
+    if capsize == 0 :
+        arch = getarch()
+    if capsize == 8 :
+        return (size >> 4) - 2
+    else:
+        return (size >> 3) - 2
+
+def fake_fast(addr,size):
+    get_heap_info()
+    result = []
+    idx = fastbin_idx(size)
+    chunk_size = size & 0xfffffffffffffff8
+    start = addr - chunk_size
+    chunk_data = gdb.selected_inferior().read_memory(start, chunk_size)
+    for offset in range(chunk_size-capsize*2):
+        fake_size = u32(chunk_data[offset:offset+4])
+        if fastbin_idx(fake_size) == idx :
+            padding = addr - (start+offset-capsize)
+            result.append((start+offset-capsize,padding))
+    return result
+
+def get_fake_fast(addr,size = None):
+    if capsize == 0 :
+        arch = getarch()
+    fast_max = int(gdb.execute("x/" + word + "&global_max_fast",to_string=True).split(":")[1].strip(),16)
+    if not fast_max :
+        fast_max = capsize*0x10
+    if size :
+        chunk_list = fake_fast(addr,size)
+        for fakechunk in chunk_list :
+            if len(chunk_list) > 0 :
+                print("\033[1;33mfake chunk : \033[1;0m0x{:<12x}\033[1;33m  padding :\033[1;0m {:<8d}".format(fakechunk[0],fakechunk[1]))
+    else :
+        for i in range(int(fast_max/(capsize*2)-1)):
+            size = capsize*2*2 + i*capsize*2
+            chunk_list = fake_fast(addr,size) 
+            if len(chunk_list) > 0 :
+                print("-- size : %s --" % hex(size))
+                for fakechunk in chunk_list :
+                    print("\033[1;33mfake chunk :\033[1;0m 0x{:<12x}\033[1;33m  padding :\033[1;0m {:<8d}".format(fakechunk[0],fakechunk[1]))

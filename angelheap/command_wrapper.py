@@ -62,6 +62,9 @@ class AngelHeapCmd(object):
         else :
             print("heap not found")
 
+    def fakefast(self,*arg):
+        (addr,size) = normalize_argv(arg,2)
+        angelheap.get_fake_fast(addr,size)
 
 class AngelHeapCmdWrapper(gdb.Command):
     """ angelheap command wrapper """
