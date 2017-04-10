@@ -974,7 +974,7 @@ def fake_fast(addr,size):
     for offset in range(chunk_size-capsize*2):
         fake_size = u32(chunk_data[offset:offset+4])
         if fastbin_idx(fake_size) == idx :
-            padding = addr - (start+offset-capsize)
+            padding = addr - (start+offset-capsize) - capsize*2
             result.append((start+offset-capsize,padding))
     return result
 
