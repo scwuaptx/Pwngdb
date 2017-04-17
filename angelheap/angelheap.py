@@ -971,7 +971,7 @@ def fake_fast(addr,size):
     chunk_size = size & 0xfffffffffffffff8
     start = addr - chunk_size
     chunk_data = gdb.selected_inferior().read_memory(start, chunk_size)
-    for offset in range(chunk_size-capsize*2):
+    for offset in range(chunk_size-4):
         fake_size = u32(chunk_data[offset:offset+4])
         if fastbin_idx(fake_size) == idx :
             padding = addr - (start+offset-capsize) - capsize*2
