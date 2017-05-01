@@ -14,6 +14,34 @@ capsize = 0
 word = ""
 arch = ""
 
+def to_int(val):
+    """
+    Convert a string to int number
+    from https://github.com/longld/peda
+    """
+    try:
+        return int(str(val), 0)
+    except:
+        return None
+
+def normalize_argv(args, size=0):
+    """
+    Normalize argv to list with predefined length
+    from https://github.com/longld/peda
+    """
+    args = list(args)
+    for (idx, val) in enumerate(args):
+        if to_int(val) is not None:
+            args[idx] = to_int(val)
+        if size and idx == size:
+            return args[:idx]
+
+    if size == 0:
+        return args
+    for i in range(len(args), size):
+        args += [None]
+    return args
+
 class PwnCmd(object):
     commands = []
     def __init__(self):
@@ -325,7 +353,7 @@ def gettls():
         return tlsaddr
     elif arch == "x86-64" :
         gdb.execute("call arch_prctl(0x1003,$rsp-8)")
-        data = gdb.execute("x/x $rsp-8",to_string=True)
+        data = gdb.execute("x/xg $rsp-8",to_string=True)
         return int(data.split(":")[1].strip(),16)
     else:
         return "error"
@@ -408,3 +436,4 @@ for cmd in pwncmd.commands :
     PwngdbAlias(cmd,"pwngdb %s" % cmd)
 
 gdb.execute("set print asm-demangle on") 
+
