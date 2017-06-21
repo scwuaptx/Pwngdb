@@ -675,9 +675,15 @@ def unlinkable(chunkaddr,fd = None ,bk = None):
     if capsize == 0 :
         arch = getarch()
     try :
+        cmd = "x/" + word + hex(chunkaddr + capsize)
+        chunk_size = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16) & 0xfffffffffffffff8
+        cmd = "x/" + word + hex(chunkaddr + chunk_size)
+        next_prev_size = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
+        if chunk_size != next_prev_size :
+            print("\033[32mUnlinkable :\033[1;31m False (corrupted size chunksize(0x%x) != prev_size(0x%x)) ) \033[37m " % (chunk_size,next_prev_size))
         if not fd :
             cmd = "x/" + word + hex(chunkaddr + capsize*2)
-            fd = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
+            fd = int(gdb.execute(cmd,to_string=true).split(":")[1].strip(),16)
         if not bk :
             cmd = "x/" + word + hex(chunkaddr + capsize*3)
             bk = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)

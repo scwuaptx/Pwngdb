@@ -13,6 +13,9 @@ directory       = path.abspath(directory)
 capsize = 0
 word = ""
 arch = ""
+magic_variable = ["__malloc_hook","__free_hook","__realloc_hook","stdin","stdout","_IO_list_all","__after_morecore_hook"]
+magic_function = ["system","execve","open","read","write","gets","setcontext+0x35"]
+
 
 def to_int(val):
     """
@@ -96,6 +99,25 @@ class PwnCmd(object):
                 print("\033[34m" + hex(sym)  + ":" + "\033[37m" +hex(symaddr))
             else :
                 print("\033[34m" + sym  + ":" + "\033[37m" +hex(symaddr))
+
+    def magic(self):
+        """ Print usefual variables or function in glibc """
+        getarch()
+        
+        try :
+            print("========== function ==========")
+            for f in magic_function :
+                print("\033[34m" + f  + ":" + "\033[33m" +hex(getoff(f))) 
+            print("\033[37m========== variables ==========")
+            for v in magic_variable :
+                cmd = "x/" + word + "&" +v
+                content = gdb.execute(cmd,to_string=True).split(":")[1].strip()
+                offset = hex(getoff("&"+ v))
+                pad = 36 - len(v) - len(offset) - 2
+                print("\033[34m%s\033[33m(%s)\033[37m%s: \033[37m%s" % (v, offset, ' ' *pad, content))
+        except :
+            print("You need run the program first")
+
 
     def findsyscall(self):
         """ find the syscall gadget"""
@@ -187,19 +209,6 @@ class PwnCmd(object):
                     addr = int(callbase.split(':')[0],16)
                     cmd = "b*" + hex(addr)
                     print(gdb.execute(cmd,to_string=True))
-
-    def abcd(self,*arg):
-        (bit,) = normalize_argv(arg,1)
-        s = ""
-        for i in range(0x7a-0x41):
-            s += chr(0x41+i)*int((int(bit)/8))
-        print(s)
-
-    def length(self,*arg):
-        (bit,pat) = normalize_argv(arg,2)
-        off = (ord(pat) - 0x41)*(int(bit)/8)
-        print(off)
-
 
 class PwngdbCmd(gdb.Command):
     """ Pwngdb command wrapper """

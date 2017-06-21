@@ -43,6 +43,7 @@ If you want to use the feature of heapinfo and tracemalloc , you need to install
 	+ You need to run the process first than `tracemalloc on`, it will record all of the malloc and free.
 	+ You can set the `DEBUG` in pwngdb.py , than it will print all of the malloc and free infomation such as the screeshot.
 + `parseheap` : Parse heap layout
++ `magic` : Print useful variable and function in glibc
 
 ## Screenshot
 
@@ -63,3 +64,6 @@ If you want to use the feature of heapinfo and tracemalloc , you need to install
 + tracemalloc
 
 ![trace](http://i.imgur.com/7UHqiwX.png)
+
++ magic
+![magic](https://i.imgur.com/M4XCv1f.png)
