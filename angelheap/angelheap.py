@@ -944,6 +944,9 @@ def parse_heap(heapbase):
             nextsize = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
             status = nextsize & 1 
             size = size & 0xfffffffffffffff8
+            if size == 0 :
+                print("\033[31mCorrupt ?! \033[0m(size == 0) (0x%x)" % chunkaddr)
+                break 
             if status :
                 if chunkaddr in fastchunk :
                     msg = "\033[1;34m Freed \033[0m"
@@ -955,8 +958,9 @@ def parse_heap(heapbase):
                 msg = "\033[1;34m Freed \033[0m"
                 print('0x{:<18x}0x{:<8x}0x{:<8x}{:<16}{:>18}{:>18}'.format(chunkaddr, prev_size, size, msg, hex(fd), hex(bk)))
             chunkaddr = chunkaddr + (size & 0xfffffffffffffff8)
+
             if chunkaddr > top["addr"] :
-                print("Corrupt ?!")
+                print("\033[31mCorrupt ?!\033[0m")
                 break 
         except :
             print("Corrupt ?!")
