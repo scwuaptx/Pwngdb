@@ -226,7 +226,7 @@ class PwngdbCmd(gdb.Command):
             else :
                 print("Unknown command")
         else :
-            print("Unknow command")
+            print("Unknown command")
 
         return 
 
