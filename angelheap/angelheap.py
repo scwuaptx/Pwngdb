@@ -363,8 +363,10 @@ def set_thread_arena():
     global thread_arena
     global main_arena
     global enable_thread
+    if capsize == 0 :
+        arch = getarch()
     try :
-        data = gdb.execute("x/x &thread_arena",to_string=True)
+        data = gdb.execute("x/" + word +"&thread_arena",to_string=True)
     except :
         print("not a multithread process")
         return
@@ -991,12 +993,12 @@ def putheapinfoall():
             count = 0
             print("  Main Arena  ".center(50,"="))
             putheapinfo(main_arena)
-            cur_arena = int(gdb.execute("x/x " + hex(main_arena+nextoff),to_string=True).split(":")[1].strip(),16)
+            cur_arena = int(gdb.execute("x/" + word + hex(main_arena+nextoff),to_string=True).split(":")[1].strip(),16)
             while cur_arena != main_arena  :
                 count +=1
                 print(("  Arena " + str(count) + "  ").center(50,"="))
                 putheapinfo(cur_arena)
-                cur_arena = int(gdb.execute("x/x " + hex(cur_arena+nextoff),to_string=True).split(":")[1].strip(),16)
+                cur_arena = int(gdb.execute("x/" + word  + hex(cur_arena+nextoff),to_string=True).split(":")[1].strip(),16)
         except :
             print("Memory Error (heap)")
     else :
@@ -1010,12 +1012,20 @@ def putinused():
     print("")
 
 
-def parse_heap(heapbase):
+
+def parse_heap(arena=None):
     if capsize == 0 :
         arch = getarch()
-    if not get_heap_info():
+    if not get_heap_info(arena):
         print("Can't find heap info")
         return
+    if thread_arena == main_arena :
+        heapbase = int(gdb.execute("x/" + word + " &mp_.sbrk_base",to_string=True).split(":")[1].strip(),16)
+    elif thread_arena :
+        arena_size = int(gdb.execute("p sizeof(main_arena)",to_string=True).split("=")[1].strip(),16)
+        heapbase = thread_arena + arena_size
+    else :
+        print("Can't find heap")
     chunkaddr = heapbase
     print('\033[1;33m{:<20}{:<10}{:<10}{:<18}{:<18}{:<18}\033[0m'.format('addr', 'prev', 'size', 'status', 'fd', 'bk'))
     while chunkaddr != top["addr"] :

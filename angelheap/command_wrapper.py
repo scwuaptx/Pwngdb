@@ -61,11 +61,7 @@ class AngelHeapCmd(object):
 
     def parseheap(self):
         """ Parse heap """
-        heapbase = int(gdb.execute("heap",to_string=True).split("\x1b[37m")[1].strip(),16)
-        if heapbase :
-            angelheap.parse_heap(heapbase)
-        else :
-            print("heap not found")
+        angelheap.parse_heap()
 
     def fakefast(self,*arg):
         (addr,size) = normalize_argv(arg,2)
