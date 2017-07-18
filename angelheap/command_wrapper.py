@@ -22,9 +22,14 @@ class AngelHeapCmd(object):
         else :
             angelheap.dis_trace_malloc()
 
-    def heapinfo(self):
+    def heapinfo(self,*arg):
         """ Print some information of heap """
-        angelheap.putheapinfo()
+        (arena,) = normalize_argv(arg,1)
+        angelheap.putheapinfo(arena)
+
+    def heapinfoall(self):
+        """ Print some information of multiheap """
+        angelheap.putheapinfoall()
 
     def chunkinfo(self,*arg):
         """ Print chunk information of victim"""

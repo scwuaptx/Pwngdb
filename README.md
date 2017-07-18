@@ -32,6 +32,9 @@ If you want to use the feature of heapinfo and tracemalloc , you need to install
 	+ You need to stop on printf which has vulnerability.
 + `force` : Calculate the nb in the house of force.
 + `heapinfo` : Print some infomation of heap
+	+ heapinfo (Address of arena)
+	+ default is the arena of current thread
++ `heapinfoall` : Print some infomation of heap (multithread)
 + `chunkinfo`: Print the infomation of chunk
     + chunkinfo (Address of victim)
 + `chunkptr` : Print the infomation of chunk 

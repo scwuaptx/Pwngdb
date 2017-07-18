@@ -9,7 +9,13 @@ import copy
 import struct
 # main_arena
 main_arena = 0
+
 main_arena_off = 0 
+
+# thread
+thread_arena = 0
+enable_thread = False
+
 
 # chunks
 top = {}
@@ -275,7 +281,9 @@ def Malloc_consolidate(): #merge fastbin when malloc a large chunk or free a ver
     if capsize == 0 :
         getarch()
     freerecord = {}
-    get_heap_info()
+    if not get_heap_info():
+        print("Can't find heap info")
+        return
     freerecord = copy.deepcopy(freememoryarea) 
 
 def getarch():
@@ -350,6 +358,22 @@ def getoff(sym):
         except :
             return 0
 
+
+def set_thread_arena():
+    global thread_arena
+    global main_arena
+    global enable_thread
+    try :
+        data = gdb.execute("x/x &thread_arena",to_string=True)
+    except :
+        print("not a multithread process")
+        return
+    enable_thread = True
+    if "main_arena" in data :
+        thread_arena = main_arena
+        return 
+    thread_arena = int(data.split(":")[1].strip(),16)
+
 def set_main_arena():
     global main_arena
     global main_arena_off
@@ -379,17 +403,17 @@ def check_overlap(addr,size,data = None):
                 return chunk,"inused" 
     return None,None
 
-def get_top_lastremainder():
-    global main_arena
+def get_top_lastremainder(arena=None):
     global fastbinsize
     global top
     global last_remainder
-
+    if not arena :
+        arena = main_arena
     chunk = {}
     if capsize == 0 :
         arch = getarch()
     #get top
-    cmd = "x/" + word + hex(main_arena + fastbinsize*capsize + 8 )
+    cmd = "x/" + word + hex(arena + fastbinsize*capsize + 8 )
     chunk["addr"] =  int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
     chunk["size"] = 0
     if chunk["addr"] :
@@ -403,7 +427,7 @@ def get_top_lastremainder():
     top = copy.deepcopy(chunk)
     #get last_remainder
     chunk = {}
-    cmd = "x/" + word + hex(main_arena + (fastbinsize+1)*capsize + 8 )
+    cmd = "x/" + word + hex(arena + (fastbinsize+1)*capsize + 8 )
     chunk["addr"] =  int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
     chunk["size"] = 0
     if chunk["addr"] :
@@ -414,13 +438,13 @@ def get_top_lastremainder():
             chunk["memerror"] = "invaild memory"
     last_remainder = copy.deepcopy(chunk)
 
-def get_fast_bin():
-    global main_arena
+def get_fast_bin(arena=None):
     global fastbin
     global fastchunk
     global fastbinsize
     global freememoryarea
-
+    if not arena :
+        arena = main_arena
     fastbin = []
     fastchunk = []
     #freememoryarea = []
@@ -430,7 +454,7 @@ def get_fast_bin():
         fastbin.append([])
         chunk = {}
         is_overlap = (None,None)
-        cmd = "x/" + word  + hex(main_arena + i*capsize + 8)
+        cmd = "x/" + word  + hex(arena + i*capsize + 8)
         chunk["addr"] = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
 
         while chunk["addr"] and not is_overlap[0]:
@@ -454,10 +478,10 @@ def get_fast_bin():
             fastbin[i].append(copy.deepcopy(chunk))
 
 
-def trace_normal_bin(chunkhead):
-    global main_arena
+def trace_normal_bin(chunkhead,arena=None):
     global freememoryarea 
-
+    if not arena :
+        arena = main_arena
     libc = libcbase()
     bins = []
     if capsize == 0 :
@@ -468,7 +492,7 @@ def trace_normal_bin(chunkhead):
     cmd = "x/" + word  + hex(chunkhead["addr"] + capsize*2) #fd
     chunk["addr"] = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16) #get fd chunk
     if (chunk["addr"] == chunkhead["addr"]) :  #no chunk in the bin
-        if (chunkhead["addr"] > libc) :
+        if (chunkhead["addr"] > arena) :
             return bins
         else :
             try :
@@ -534,21 +558,22 @@ def trace_normal_bin(chunkhead):
             chunk["addr"] = fd
     return bins
 
-def get_unsortbin():
-    global main_arena
+def get_unsortbin(arena=None):
     global unsortbin
+    if not arena :
+        arena = main_arena
     unsortbin = []
     if capsize == 0 :
         arch = getarch()
     chunkhead = {}
-    cmd = "x/" + word + hex(main_arena + (fastbinsize+2)*capsize+8)
+    cmd = "x/" + word + hex(arena + (fastbinsize+2)*capsize+8)
     chunkhead["addr"] = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
-    unsortbin = trace_normal_bin(chunkhead)
+    unsortbin = trace_normal_bin(chunkhead,arena)
 
-def get_smallbin():
-    global main_arena
+def get_smallbin(arena=None):
     global smallbin
-
+    if not arena :
+        arena = main_arena
     smallbin = {}
     if capsize == 0 :
         arch = getarch()
@@ -556,9 +581,9 @@ def get_smallbin():
     for size in range(capsize*4,max_smallbin_size,capsize*2):
         chunkhead = {}
         idx = int((size/(capsize*2)))-1
-        cmd = "x/" + word + hex(main_arena + (fastbinsize+2)*capsize+8 + idx*capsize*2)  # calc the smallbin index
+        cmd = "x/" + word + hex(arena + (fastbinsize+2)*capsize+8 + idx*capsize*2)  # calc the smallbin index
         chunkhead["addr"] = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
-        bins = trace_normal_bin(chunkhead)
+        bins = trace_normal_bin(chunkhead,arena)
         if bins and len(bins) > 0 :
             smallbin[hex(size)] = copy.deepcopy(bins)
 
@@ -593,37 +618,61 @@ def largbin_index(size):
             idx = 126
     return idx 
 
-def get_largebin():
-    global main_arena
+def get_largebin(arena=None):
     global largebin
-
+    if not arena :
+        arena = main_arena
     largebin = {}
     if capsize == 0 :
         arch = getarch()
     min_largebin = 512*int(capsize/4)
     for idx in range(64,128):
         chunkhead = {}
-        cmd = "x/" + word + hex(main_arena + (fastbinsize+2)*capsize + idx*capsize*2)  # calc the largbin index
+        cmd = "x/" + word + hex(arena + (fastbinsize+2)*capsize + idx*capsize*2)  # calc the largbin index
         chunkhead["addr"] = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
-        bins = trace_normal_bin(chunkhead)
+        bins = trace_normal_bin(chunkhead,arena)
         if bins and len(bins) > 0 :
             largebin[idx] = copy.deepcopy(bins)
 
-def get_heap_info():
+def get_heap_info(arena=None):
     global main_arena
+    global thread_arena
     global freememoryarea
     global top
 
     top = {}
     freememoryarea = {}
+
+    if arena :
+        get_unsortbin(arena)
+        get_smallbin(arena)
+        if tracelargebin :
+            get_largebin(arena)
+        get_fast_bin(arena)
+        get_top_lastremainder(arena)
+        return True
+
     set_main_arena()
-    if main_arena :
+    set_thread_arena()
+    if thread_arena and enable_thread :
+        get_unsortbin(thread_arena)
+        get_smallbin(thread_arena)
+        if tracelargebin :
+            get_largebin(thread_arena)
+        get_fast_bin(thread_arena)
+        get_top_lastremainder(thread_arena)
+        return True
+
+    elif main_arena and not enable_thread:
         get_unsortbin()
         get_smallbin()
         if tracelargebin :
             get_largebin()
         get_fast_bin()
         get_top_lastremainder()
+        return True
+    return False
+    
 
 def get_reg(reg):
     cmd = "info register " + reg
@@ -640,7 +689,9 @@ def trace_malloc():
     freebp = Free_Bp_handler("*" + "_int_free")
     memalignbp = Memalign_Bp_handler("*" + "_int_memalign")
     reallocbp = Realloc_Bp_handler("*" + "_int_realloc")
-    get_heap_info()
+    if not get_heap_info() :
+        print("Can't find heap info")
+        return
 
 def dis_trace_malloc():
     global mallocbp
@@ -710,7 +761,9 @@ def chunkinfo(victim):
         arch = getarch()
     chunkaddr = victim
     try :
-        get_heap_info()
+        if not get_heap_info() :
+            print("Can't find heap info")
+            return
         cmd = "x/" + word + hex(chunkaddr)
         prev_size = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
         cmd = "x/" + word + hex(chunkaddr + capsize*1)
@@ -762,7 +815,9 @@ def mergeinfo(victim):
         arch = getarch()
     chunkaddr = victim
     try :
-        get_heap_info()
+        if not get_heap_info():
+            print("Can't find heap info")
+            return
         print("==================================")
         print("            Merge info            ")
         print("==================================")
@@ -819,18 +874,22 @@ def mergeinfo(victim):
 def force(target):
     if capsize == 0 :
         arch = getarch()
-    get_heap_info()
+    if not get_heap_info():
+        print("Can't find heap info")
+        return
     if target % capsize != 0 :
         print("Not alignment")
     else :
         nb = target - top["addr"] - capsize*2
         print("nb = %d" % nb)
 
-def putfastbin():
+def putfastbin(arena=None):
     if capsize == 0 :
         arch = getarch()
 
-    get_heap_info()
+    if not get_heap_info(arena):
+         print("Can't find heap info")
+         return False
     for i,bins in enumerate(fastbin) :
         cursize = (capsize*2)*(i+2)
         print("\033[32m(0x%02x)     fastbin[%d]:\033[37m " % (cursize,i),end = "")
@@ -854,12 +913,13 @@ def putfastbin():
             if chunk != bins[-1]:
                 print(" --> ",end = "")
         print("")
+    return True
 
-def putheapinfo():
+def putheapinfo(arena=None):
     if capsize == 0 :
         arch = getarch()
-
-    putfastbin()
+    if not putfastbin(arena) :
+        return
     if "memerror" in top :
         print("\033[35m %20s:\033[31m 0x%x \033[33m(size : 0x%x)\033[31m (%s)\033[37m " % ("top",top["addr"],top["size"],top["memerror"]))
     else :
@@ -900,7 +960,6 @@ def putheapinfo():
                 print(" <--> ",end = "")
         print("") 
     for idx,bins in largebin.items():
-#        print("\033[33m(0x%03x-0x%03x)  %s[%2d]:\033[37m " % (int(size,16),int(maxsize,16),"largebin",idx),end="")
         print("\033[33m  %15s[%2d]:\033[37m " % ("largebin",idx),end="")
         for chunk in bins :
             if "memerror" in chunk :
@@ -917,6 +976,33 @@ def putheapinfo():
                 print(" <--> ",end = "")
         print("") 
 
+
+def putheapinfoall():
+    set_main_arena()
+    if capsize == 0 :
+        arch = getarch()
+    cur_arena = 0
+    if main_arena :
+        try : 
+            if capsize == 4 :
+                nextoff = 0x10d*capsize + 0xc
+            else :
+                nextoff = 0x10d*capsize
+            count = 0
+            print("  Main Arena  ".center(50,"="))
+            putheapinfo(main_arena)
+            cur_arena = int(gdb.execute("x/x " + hex(main_arena+nextoff),to_string=True).split(":")[1].strip(),16)
+            while cur_arena != main_arena  :
+                count +=1
+                print(("  Arena " + str(count) + "  ").center(50,"="))
+                putheapinfo(cur_arena)
+                cur_arena = int(gdb.execute("x/x " + hex(cur_arena+nextoff),to_string=True).split(":")[1].strip(),16)
+        except :
+            print("Memory Error (heap)")
+    else :
+        print("Can't find heap info ")
+
+
 def putinused():
     print("\033[33m %s:\033[37m " % "inused ",end="")
     for addr,(start,end,chunk) in allocmemoryarea.items() :
@@ -927,8 +1013,10 @@ def putinused():
 def parse_heap(heapbase):
     if capsize == 0 :
         arch = getarch()
-    get_heap_info()
-    chunkaddr = heapbase
+    if not get_heap_info():
+        print("Can't find heap info")
+        return
+    ehunkaddr = heapbase
     print('\033[1;33m{:<20}{:<10}{:<10}{:<18}{:<18}{:<18}\033[0m'.format('addr', 'prev', 'size', 'status', 'fd', 'bk'))
     while chunkaddr != top["addr"] :
         try :
@@ -975,7 +1063,9 @@ def fastbin_idx(size):
         return (size >> 3) - 2
 
 def fake_fast(addr,size):
-    get_heap_info()
+    if not get_heap_info():
+        print("Can't find heap info")
+        return
     result = []
     idx = fastbin_idx(size)
     chunk_size = size & 0xfffffffffffffff8
