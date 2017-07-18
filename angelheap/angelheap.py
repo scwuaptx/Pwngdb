@@ -1016,7 +1016,7 @@ def parse_heap(heapbase):
     if not get_heap_info():
         print("Can't find heap info")
         return
-    ehunkaddr = heapbase
+    chunkaddr = heapbase
     print('\033[1;33m{:<20}{:<10}{:<10}{:<18}{:<18}{:<18}\033[0m'.format('addr', 'prev', 'size', 'status', 'fd', 'bk'))
     while chunkaddr != top["addr"] :
         try :
