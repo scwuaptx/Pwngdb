@@ -368,7 +368,6 @@ def set_thread_arena():
     try :
         data = gdb.execute("x/" + word +"&thread_arena",to_string=True)
     except :
-        print("not a multithread process")
         return
     enable_thread = True
     if "main_arena" in data :
