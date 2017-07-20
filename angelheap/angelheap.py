@@ -1018,7 +1018,7 @@ def parse_heap(arena=None):
     if not get_heap_info(arena):
         print("Can't find heap info")
         return
-    if thread_arena == main_arena :
+    if (main_arena and not enable_thread) or thread_arena == main_arena :
         heapbase = int(gdb.execute("x/" + word + " &mp_.sbrk_base",to_string=True).split(":")[1].strip(),16)
     elif thread_arena :
         arena_size = int(gdb.execute("p sizeof(main_arena)",to_string=True).split("=")[1].strip(),16)
