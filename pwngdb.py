@@ -336,17 +336,24 @@ def getheapbase():
     else :
         return 0
 
-def codeaddr(): # ret (start,end)
+def codeaddr(total=False): # ret (start,end)
     infomap = procmap()
     procname = getprocname()
     pat = ".*" + procname
     data = re.findall(pat,infomap)
-    if data :
-        codebaseaddr = data[0].split("-")[0]
-        codeend = data[0].split("-")[1].split()[0]
-        gdb.execute("set $code=%s" % hex(int(codebaseaddr,16)))
+    codebaseaddr = 0
+    codeend   = 0
+    for d in data:
+        if codebaseaddr == 0:
+            codebaseaddr = d.split("-")[0]
+        codeend = d.split("-")[1].split()[0]
+        if total == False:
+            gdb.execute("set $code=%s" % hex(int(codebaseaddr,16)))
+            return (int(codebaseaddr,16),int(codeend,16))
+
+    if (codebaseaddr != 0) and (codeend != 0):
         return (int(codebaseaddr,16),int(codeend,16))
-    else :
+    else:
         return (0,0)
 
 def gettls():
@@ -394,7 +401,13 @@ def getoff(sym):
                 data = re.search("0x.*[0-9a-f] ",data)
                 data = data.group()
                 symaddr = int(data[:-1] ,16)
-                return symaddr-libc
+                
+                # sym is located at code 
+                code_start, code_end = codeaddr(total=True)
+                if (symaddr >= code_start) and (symaddr <= code_end):
+                    return symaddr-code_start
+                else:
+                    return symaddr-libc
         except :
             return 0
 
