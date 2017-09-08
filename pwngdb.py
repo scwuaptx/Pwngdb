@@ -478,7 +478,7 @@ def testorange(addr):
     cmd = "x/" + word + "&((struct _IO_FILE_plus *)" + hex(addr) + ").file._IO_write_base"
     write_base = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
     if mode < 0x80000000 and mode != 0:
-        print("\033[33m_mode(0x%x) < 0\033[37m" % mode)
+        print("\033[33m_mode(0x%x) <= 0\033[37m" % mode)
         result = False
     if write_ptr <= write_base :
         print("\033[33m_IO_write_ptr(0x%x) <= _IO_write_base(0x%x)\033[37m" % (write_ptr,write_base))
