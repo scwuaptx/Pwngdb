@@ -471,14 +471,14 @@ def showfpchain():
 def testorange(addr):
     getarch()
     result = True
-    cmd = "x/" + word + "&((struct _IO_FILE_plus *)" + hex(addr) + ").file._flags"
-    flag = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16) & 0xffffffff
+    cmd = "x/" + word + "&((struct _IO_FILE_plus *)" + hex(addr) + ").file._mode"
+    mode = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16) & 0xffffffff
     cmd = "x/" + word + "&((struct _IO_FILE_plus *)" + hex(addr) + ").file._IO_write_ptr"
     write_ptr = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
     cmd = "x/" + word + "&((struct _IO_FILE_plus *)" + hex(addr) + ").file._IO_write_base"
     write_base = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
-    if flag < 0x80000000 :
-        print("\033[33m_flags(0x%x) < 0\033[37m" % flag)
+    if mode < 0x80000000 and mode != 0:
+        print("\033[33m_mode(0x%x) < 0\033[37m" % mode)
         result = False
     if write_ptr <= write_base :
         print("\033[33m_IO_write_ptr(0x%x) <= _IO_write_base(0x%x)\033[37m" % (write_ptr,write_base))
