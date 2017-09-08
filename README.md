@@ -47,6 +47,13 @@ If you want to use the feature of heapinfo and tracemalloc , you need to install
 	+ You can set the `DEBUG` in pwngdb.py , than it will print all of the malloc and free infomation such as the screeshot.
 + `parseheap` : Parse heap layout
 + `magic` : Print useful variable and function in glibc
++ `fp` : show FILE structure
+	+ fp (Address of FILE)
++ `fpchain`: show linked list of FILE
++ `orange` : Test `house of orange` condition in the `_IO_flush_lockp`
+	+ orange (Address of FILE)
+	+ glibc version <= 2.23
+
 
 ## Screenshot
 

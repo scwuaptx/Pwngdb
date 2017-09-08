@@ -99,6 +99,23 @@ class PwnCmd(object):
                 print("\033[34m" + hex(sym)  + ":" + "\033[37m" +hex(symaddr))
             else :
                 print("\033[34m" + sym  + ":" + "\033[37m" +hex(symaddr))
+    
+    def fp(self,*arg):
+        """ show FILE structure """
+        (addr,) = normalize_argv(arg,1)
+        showfp(addr)
+
+    def fpchain(self):
+        """ show FILE chain """
+        showfpchain()
+
+    def orange(self,*arg):
+        """ test house of orange """
+        (addr,) = normalize_argv(arg,1)
+        if addr :
+            testorange(addr)
+        else :
+            print("You need to specifiy an address")
 
     def magic(self):
         """ Print usefual variables or function in glibc """
@@ -111,7 +128,7 @@ class PwnCmd(object):
             print("\033[37m========== variables ==========")
             for v in magic_variable :
                 cmd = "x/" + word + "&" +v
-                content = gdb.execute(cmd,to_string=True).split(":")[1].strip()
+                content = gdb.execute(cmd,to_string=true).split(":")[1].strip()
                 offset = hex(getoff("&"+ v))
                 pad = 36 - len(v) - len(offset) - 2
                 print("\033[34m%s\033[33m(%s)\033[37m%s: \033[37m%s" % (v, offset, ' ' *pad, content))
@@ -424,7 +441,53 @@ def get_reg(reg):
     result = int(gdb.execute(cmd,to_string=True).split()[1].strip(),16)
     return result
 
+def showfp(addr):
+    if addr : 
+        cmd = "p *(struct _IO_FILE_plus *)" + hex(addr)
+        try :
+            result = gdb.execute(cmd)
+        except :
+            print("Can't not access 0x%x" % addr)
+    else :
+        print("You need to specify an address")
 
+def showfpchain():
+    getarch()
+    cmd = "x/" + word + "&_IO_list_all"
+    head = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
+    print("\033[32mfpchain:\033[37m ",end = "")
+    chain = head
+    print("0x%x" % chain,end = "")
+    try :
+        while chain != 0 :
+            print(" --> ",end = "")
+            cmd = "x/" + word + "&((struct _IO_FILE_plus *)" + hex(chain) +").file._chain"
+            chain = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
+            print("0x%x" % chain,end = "")
+        print("")
+    except :
+        print("Chain is corrupted")
+
+def testorange(addr):
+    getarch()
+    result = True
+    cmd = "x/" + word + "&((struct _IO_FILE_plus *)" + hex(addr) + ").file._flags"
+    flag = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16) & 0xffffffff
+    cmd = "x/" + word + "&((struct _IO_FILE_plus *)" + hex(addr) + ").file._IO_write_ptr"
+    write_ptr = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
+    cmd = "x/" + word + "&((struct _IO_FILE_plus *)" + hex(addr) + ").file._IO_write_base"
+    write_base = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
+    if flag < 0x80000000 :
+        print("\033[33m_flags(0x%x) < 0\033[37m" % flag)
+        result = False
+    if write_ptr <= write_base :
+        print("\033[33m_IO_write_ptr(0x%x) <= _IO_write_base(0x%x)\033[37m" % (write_ptr,write_base))
+        result = False
+    if result :
+        print("Result : \033[34mTrue\033[37m")
+    else :
+        print("Result : \033[31mFalse\033[37m")
+    
 def getfmtarg(addr):
     if capsize == 0 :
         getarch()
