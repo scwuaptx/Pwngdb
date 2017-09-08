@@ -36,6 +36,11 @@ class AngelHeapCmd(object):
         (victim,) = normalize_argv(arg,1)
         angelheap.chunkinfo(victim)
 
+    def free(self,*arg):
+        """ Print chunk is freeable """
+        (victim,) = normalize_argv(arg,1)
+        angelheap.freeptr(victim)
+
     def chunkptr(self,*arg):
         """ Print chunk information of user ptr"""
         (ptr,) = normalize_argv(arg,1)

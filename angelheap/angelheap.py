@@ -9,7 +9,6 @@ import copy
 import struct
 # main_arena
 main_arena = 0
-
 main_arena_off = 0 
 
 # thread
@@ -26,6 +25,7 @@ last_remainder = {}
 unsortbin = []
 smallbin = {}  #{size:bin}
 largebin = {}
+system_mem = 0x21000
 
 # chunk recording
 freememoryarea = {} #using in parse
@@ -50,6 +50,8 @@ capsize = 0
 word = ""
 arch = ""
 
+#condition
+corruptbin = False
 
 def u32(data,fmt="<I"):
     return struct.unpack(fmt,data)[0]
@@ -395,11 +397,9 @@ def check_overlap(addr,size,data = None):
                 return chunk,"error"
     else :
         for key,(start,end,chunk) in freememoryarea.items() :
-    #    print("addr 0x%x,start 0x%x,end 0x%x,size 0x%x" %(addr,start,end,size) )
             if (addr >= start and addr < end) or ((addr+size) > start and (addr+size) < end ) or ((addr < start) and  ((addr + size) >= end)):
                 return chunk,"freed"
         for key,(start,end,chunk) in allocmemoryarea.items() :
-    #    print("addr 0x%x,start 0x%x,end 0x%x,size 0x%x" %(addr,start,end,size) )
             if (addr >= start and addr < end) or ((addr+size) > start and (addr+size) < end ) or ((addr < start) and  ((addr + size) >= end)) :
                 return chunk,"inused" 
     return None,None
@@ -421,7 +421,7 @@ def get_top_lastremainder(arena=None):
         cmd = "x/" + word + hex(chunk["addr"]+capsize*1)
         try :
             chunk["size"] = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16) & 0xfffffffffffffff8
-            if chunk["size"] > 0x21000 :
+            if chunk["size"] > system_mem :
                 chunk["memerror"] = "top is broken ?"
         except :
             chunk["memerror"] = "invaild memory"
@@ -584,7 +584,11 @@ def get_smallbin(arena=None):
         idx = int((size/(capsize*2)))-1
         cmd = "x/" + word + hex(arena + (fastbinsize+2)*capsize+8 + idx*capsize*2)  # calc the smallbin index
         chunkhead["addr"] = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
-        bins = trace_normal_bin(chunkhead,arena)
+        try :
+            bins = trace_normal_bin(chunkhead,arena)
+        except:
+            corruptbin = True
+            bins = None
         if bins and len(bins) > 0 :
             smallbin[hex(size)] = copy.deepcopy(bins)
 
@@ -621,6 +625,7 @@ def largbin_index(size):
 
 def get_largebin(arena=None):
     global largebin
+    global corruptbin
     if not arena :
         arena = main_arena
     largebin = {}
@@ -631,9 +636,25 @@ def get_largebin(arena=None):
         chunkhead = {}
         cmd = "x/" + word + hex(arena + (fastbinsize+2)*capsize + idx*capsize*2)  # calc the largbin index
         chunkhead["addr"] = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
-        bins = trace_normal_bin(chunkhead,arena)
+        try :
+            bins = trace_normal_bin(chunkhead,arena)
+        except :
+            corruptbin = True
+            bins = None
         if bins and len(bins) > 0 :
             largebin[idx] = copy.deepcopy(bins)
+
+def get_system_mem(arena=None):
+    global system_mem
+    if not arena :
+        arena = main_arena
+    if capsize == 0 :
+        arch = getarch()
+    if capsize == 4 :
+        system_mem_off = 0x110*capsize + 0xc
+    else :
+        system_mem_off = 0x110*capsize
+    system_mem = int(gdb.execute("x/" + word + hex(arena+system_mem_off),to_string=True).split(":")[1].strip(),16)
 
 def get_heap_info(arena=None):
     global main_arena
@@ -643,8 +664,9 @@ def get_heap_info(arena=None):
 
     top = {}
     freememoryarea = {}
-
+    corruptbin = False
     if arena :
+        get_system_mem(arena)
         get_unsortbin(arena)
         get_smallbin(arena)
         if tracelargebin :
@@ -653,9 +675,11 @@ def get_heap_info(arena=None):
         get_top_lastremainder(arena)
         return True
 
+
     set_main_arena()
     set_thread_arena()
     if thread_arena and enable_thread :
+        get_system_mem(thread_arena)
         get_unsortbin(thread_arena)
         get_smallbin(thread_arena)
         if tracelargebin :
@@ -665,6 +689,7 @@ def get_heap_info(arena=None):
         return True
 
     elif main_arena and not enable_thread:
+        get_system_mem()
         get_unsortbin()
         get_smallbin()
         if tracelargebin :
@@ -731,8 +756,6 @@ def unlinkable(chunkaddr,fd = None ,bk = None):
         chunk_size = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16) & 0xfffffffffffffff8
         cmd = "x/" + word + hex(chunkaddr + chunk_size)
         next_prev_size = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
-        if chunk_size != next_prev_size :
-            print("\033[32mUnlinkable :\033[1;31m False (corrupted size chunksize(0x%x) != prev_size(0x%x)) ) \033[37m " % (chunk_size,next_prev_size))
         if not fd :
             cmd = "x/" + word + hex(chunkaddr + capsize*2)
             fd = int(gdb.execute(cmd,to_string=true).split(":")[1].strip(),16)
@@ -743,7 +766,9 @@ def unlinkable(chunkaddr,fd = None ,bk = None):
         fd_bk = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
         cmd = "x/" + word + hex(bk + capsize*2)
         bk_fd = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
-        if (chunkaddr == fd_bk ) and (chunkaddr == bk_fd) :
+        if chunk_size != next_prev_size :
+            print("\033[32mUnlinkable :\033[1;31m False (corrupted size chunksize(0x%x) != prev_size(0x%x)) ) \033[37m " % (chunk_size,next_prev_size))
+        elif (chunkaddr == fd_bk ) and (chunkaddr == bk_fd) :
             print("\033[32mUnlinkable :\033[1;33m True\033[37m")
             print("\033[32mResult of unlink :\033[37m")
             print("\033[32m      \033[1;34m FD->bk (\033[1;33m*0x%x\033[1;34m) = BK (\033[1;37m0x%x ->\033[1;33m 0x%x\033[1;34m)\033[37m " % (fd+capsize*3,fd_bk,bk))
@@ -756,6 +781,93 @@ def unlinkable(chunkaddr,fd = None ,bk = None):
     except :
         print("\033[32mUnlinkable :\033[1;31m False (FD or BK is corruption) \033[37m ")
 
+def freeable(victim):
+    global fastchunk
+    global system_mem
+    if capsize == 0 :
+        arch = getarch()
+    chunkaddr = victim
+    try :
+        if not get_heap_info() :
+            print("Can't find heap info")
+            return
+        cmd = "x/" + word + hex(chunkaddr)
+        prev_size = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
+        cmd = "x/" + word + hex(chunkaddr + capsize*1)
+        size = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
+        cmd = "x/" + word + hex(chunkaddr + capsize*2)
+        fd = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
+        cmd = "x/" + word + hex(chunkaddr + capsize*3)
+        bk = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
+        prev_inuse = size & 1
+        is_mmapd = (size >> 1) & 1
+        non_main_arena = (size >> 2) & 1
+        size = size & 0xfffffffffffffff8
+        if is_mmapd :
+            block = chunkaddr - prev_size
+            total_size = prev_size + size
+            if ((block | total_size) & (0xfff)) != 0 :
+                print("\033[32mFreeable :\033[1;31m False -> Invalid pointer (((chunkaddr(0x%x) - prev_size(0x%x))|(prev_size(0x%x) + size(0x%x)))) & 0xfff != 0 \033[37m" % (chunkaddr,prev_size,prev_size,size))
+                return 
+        else :
+            if chunkaddr > (2**(capsize*8) - (size & 0xfffffffffffffff8)):
+                print("\033[32mFreeable :\033[1;31m False -> Invalid pointer chunkaddr (0x%x) > -size (0x%x)\033[37m" % (chunkaddr,(2**(capsize*8) - (size & 0xfffffffffffffff8)))) 
+                return
+            if (chunkaddr & (capsize*2 - 1)) != 0 :
+                print("\033[32mFreeable :\033[1;31m False -> Invalid pointer misaligned chunkaddr (0x%x) & (0x%x) != 0\033[37m" % (chunkaddr,(capsize*2 - 1)))
+                return
+            if (size < capsize*4) :
+                print("\033[32mFreeable :\033[1;31m False -> Chunkaddr (0x%x) invalid size (size(0x%x) < 0x%x )\033[37m" % (chunkaddr,size,capsize*4))
+                return
+            if (size & (capsize)) !=0 :
+                print("\033[32mFreeable :\033[1;31m False -> Chunkaddr (0x%x) invalid size (size(0x%x) & 0x%x != 0 )\033[37m" % (chunkaddr,size,capsize))
+                return
+            cmd = "x/" + word + hex(chunkaddr + size + capsize)
+            nextsize = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
+            nextchunk = chunkaddr + size
+            status = nextsize & 1
+            if size <= capsize*0x10 :  #fastbin
+                if nextsize < capsize*4 :
+                    print("\033[32mFreeable :\033[1;31m False -> Chunkaddr (0x%x) invalid next size (size(0x%x) < 0x%x )\033[37m" % (chunkaddr,size,capsize*4))
+                    return
+                if nextsize >= system_mem :
+                    print("\033[32mFreeable :\033[1;31m False -> Chunkaddr (0x%x) invalid next size (size(0x%x) > system_mem(0x%x) )\033[37m" % (chunkaddr,size,system_mem))
+                    return
+                old = fastbin[int(size/0x10)-2][0]["addr"]
+                if chunkaddr == old :
+                    print("\033[32mFreeable :\033[1;31m false -> Double free chunkaddr(0x%x) == 0x%x )\033[37m" % (chunkaddr,old)) 
+                    return
+            else :
+                if chunkaddr == top["addr"]:
+                    print("\033[32mFreeable :\033[1;31m False -> Free top chunkaddr(0x%x) == 0x%x )\033[37m" % (chunkaddr,top["addr"]))
+                    return
+                cmd = "x/" + word + hex(top["addr"] + capsize)
+                topsize = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
+                if nextchunk >= top["addr"] + topsize :
+                    print("\033[32mFreeable :\033[1;31m False -> Out of top chunkaddr(0x%x) > 0x%x )\033[37m" % (chunkaddr,top["addr"] + topsize))
+                    return
+                if status == 0 :
+                    print("\033[32mFreeable :\033[1;31m false -> Double free chunkaddr(0x%x) inused bit is not seted )\033[37m" % (chunkaddr))
+                    return
+                if nextsize < capsize*4 :
+                    print("\033[32mFreeable :\033[1;31m False -> Chunkaddr (0x%x) invalid next size (size(0x%x) < 0x%x )\033[37m" % (chunkaddr,size,capsize*4))
+                    return
+                if nextsize >= system_mem :
+                    print("\033[32mFreeable :\033[1;31m False -> Chunkaddr (0x%x) invalid next size (size(0x%x) > system_mem(0x%x) )\033[37m" % (chunkaddr,size,system_mem))
+                    return
+                if len(unsortbin) > 0 :
+                    bck = unsortbin[0]["addr"]
+                    cmd = "x/" + word + hex(bck + capsize*2)
+                    fwd = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
+                    cmd = "x/" + word + hex(fwd + capsize*3)
+                    bk = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
+                    if bk != bck :
+                        print("\033[32mFreeable :\033[1;31m False -> Corrupted unsorted chunkaddr fwd->bk(0x%x) != bck(0x%x) )\033[37m" % (bk,bck))
+                        return
+            print("\033[32mFreeable :\033[1;33m True\033[37m") 
+    except :
+        print("Can't access memory")
+    
 def chunkinfo(victim):
     global fastchunk
     if capsize == 0 :
@@ -787,6 +899,7 @@ def chunkinfo(victim):
         else :
             print("\033[1;32mStatus : \033[1;34m Freed \033[37m")
             unlinkable(chunkaddr,fd,bk)
+        freeable(chunkaddr)
         print("\033[32mprev_size :\033[37m 0x%x                  " % prev_size)
         print("\033[32msize :\033[37m 0x%x                  " % (size & 0xfffffffffffffff8))
         print("\033[32mprev_inused :\033[37m %x                    " % (size & 1) )
@@ -805,10 +918,19 @@ def chunkinfo(victim):
     except :
         print("Can't access memory")
 
+def freeptr(ptr):
+    if capsize == 0 :
+        arch = getarch()
+    freeable(ptr-capsize*2) 
+
 def chunkptr(ptr):
     if capsize == 0 :
         arch = getarch()
     chunkinfo(ptr-capsize*2) 
+
+
+
+
 
 def mergeinfo(victim):
     global fastchunk
@@ -976,7 +1098,8 @@ def putheapinfo(arena=None):
             if chunk != bins[-1]:
                 print(" <--> ",end = "")
         print("") 
-
+    if corruptbin :
+        print("\033[31m Some bins is corrupted !\033[37m")
 
 def putheapinfoall():
     set_main_arena()
