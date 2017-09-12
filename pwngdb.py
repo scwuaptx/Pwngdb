@@ -117,6 +117,11 @@ class PwnCmd(object):
         else :
             print("You need to specifiy an address")
 
+    def fsop(self,*arg):
+        """ test fsop """
+        (addr,) = normalize_argv(arg,1)
+        testfsop(addr) 
+
     def magic(self):
         """ Print usefual variables or function in glibc """
         getarch()
@@ -455,7 +460,7 @@ def showfpchain():
     getarch()
     cmd = "x/" + word + "&_IO_list_all"
     head = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
-    print("\033[32mfpchain:\033[37m ",end = "")
+    print("\033[32mfpchain:\033[1;37m ",end = "")
     chain = head
     print("0x%x" % chain,end = "")
     try :
@@ -478,16 +483,39 @@ def testorange(addr):
     cmd = "x/" + word + "&((struct _IO_FILE_plus *)" + hex(addr) + ").file._IO_write_base"
     write_base = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
     if mode < 0x80000000 and mode != 0:
-        print("\033[33m_mode(0x%x) <= 0\033[37m" % mode)
+        print("\033[;1;31m_mode(0x%x) <= 0\033[1;37m" % mode)
         result = False
     if write_ptr <= write_base :
-        print("\033[33m_IO_write_ptr(0x%x) <= _IO_write_base(0x%x)\033[37m" % (write_ptr,write_base))
+        print("\033[;1;31m_IO_write_ptr(0x%x) < _IO_write_base(0x%x)\033[1;37m" % (write_ptr,write_base))
         result = False
     if result :
         print("Result : \033[34mTrue\033[37m")
+        cmd = "x/" + word + "&((struct _IO_FILE_plus *)" + hex(addr) + ").vtable.__overflow"
+        overflow = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
+        print("Func : \033[33m 0x%x\033[1;37m" % overflow)
     else :
-        print("Result : \033[31mFalse\033[37m")
-    
+        print("Result : \033[31mFalse\033[1;37m")
+
+def testfsop(addr=None):
+    getarch()
+    if addr :
+        cmd = "x/" + word + hex(addr)
+    else :
+        cmd = "x/" + word + "&_IO_list_all"
+    head = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
+    chain = head
+    print("---------- fp : 0x%x ----------" % chain)
+    testorange(chain)
+    try :
+        while chain != 0 :
+            cmd = "x/" + word + "&((struct _IO_FILE_plus *)" + hex(chain) +").file._chain"
+            chain = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
+            if chain != 0 :
+                print("---------- fp : 0x%x ----------" % chain)
+                testorange(chain)
+    except :
+        print("Chain is corrupted")
+
 def getfmtarg(addr):
     if capsize == 0 :
         getarch()
