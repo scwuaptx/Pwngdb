@@ -164,7 +164,7 @@ class PwnCmd(object):
             cmd = "objdump -R "
             if iscplus :
                 cmd += "--demangle "
-            cmd += processname
+            cmd += "\"" + processname + "\""
             got = subprocess.check_output(cmd,shell=True)[:-2].decode('utf8')
             print(got)
         else :
@@ -174,7 +174,7 @@ class PwnCmd(object):
         """ Print dynamic section """
         processname = getprocname()
         if processname :
-            dyn = subprocess.check_output("readelf -d " + processname,shell=True).decode('utf8')
+            dyn = subprocess.check_output("readelf -d \"" + processname + "\"",shell=True).decode('utf8')
             print(dyn)
         else :
             print("No current process or executable file specified." )
@@ -183,7 +183,7 @@ class PwnCmd(object):
         """ ROPgadget """
         procname = getprocname()
         if procname :
-            subprocess.call("ROPgadget --binary " + procname,shell=True)
+            subprocess.call("ROPgadget --binary \"" + procname +"\"",shell=True)
         else :
             print("No current process or executable file specified." )
 
@@ -426,7 +426,7 @@ def searchcall(sym):
     cmd = "objdump -d -M intel "
     if iscplus :
         cmd += "--demangle "
-    cmd += procname
+    cmd += "\"" + procname + "\""
     try :
         call = subprocess.check_output(cmd
                 + "| grep \"call.*" + sym + "@plt>\""  ,shell=True).decode('utf8')
@@ -436,7 +436,7 @@ def searchcall(sym):
 
 def ispie():
     procname = getprocname()
-    result = subprocess.check_output("readelf -h " + procname,shell=True).decode('utf8')
+    result = subprocess.check_output("readelf -h " + "\"" + procname +"\"",shell=True).decode('utf8')
     if re.search("DYN",result):
         return True
     else:
@@ -484,11 +484,23 @@ def testorange(addr):
     cmd = "x/" + word + "&((struct _IO_FILE_plus *)" + hex(addr) + ").file._IO_write_base"
     write_base = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
     if mode < 0x80000000 and mode != 0:
-        print("\033[;1;31m_mode(0x%x) <= 0\033[1;37m" % mode)
-        result = False
-    if write_ptr <= write_base :
-        print("\033[;1;31m_IO_write_ptr(0x%x) < _IO_write_base(0x%x)\033[1;37m" % (write_ptr,write_base))
-        result = False
+        try :
+            cmd = "x/" + word + "&((struct _IO_FILE_plus *)" + hex(addr) + ").file._wide_data"
+            wide_data = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
+            cmd = "x/" + word + "&((struct _IO_wide_data *)" + hex(wide_data) + ")._IO_write_ptr"
+            w_write_ptr = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
+            cmd = "x/" + word + "&((struct _IO_wide_data *)" + hex(wide_data) + ")._IO_write_base"
+            w_write_base = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
+            if w_write_ptr <= w_write_base :
+                print("\033[;1;31m_wide_data->_IO_write_ptr(0x%x) < _wide_data->_IO_write_base(0x%x)\033[1;37m" % (w_write_ptr,w_write_base))
+                result = False
+        except :
+            print("\033;1;31mCan't access wide_data\033[1;37m")
+            result = False
+    else :
+        if write_ptr <= write_base :
+            print("\033[;1;31m_IO_write_ptr(0x%x) < _IO_write_base(0x%x)\033[1;37m" % (write_ptr,write_base))
+            result = False  
     if result :
         print("Result : \033[34mTrue\033[37m")
         cmd = "x/" + word + "&((struct _IO_FILE_plus *)" + hex(addr) + ").vtable.__overflow"
