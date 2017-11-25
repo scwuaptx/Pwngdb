@@ -634,7 +634,7 @@ def get_largebin(arena=None):
     min_largebin = 512*int(capsize/4)
     for idx in range(64,128):
         chunkhead = {}
-        cmd = "x/" + word + hex(arena + (fastbinsize+2)*capsize + idx*capsize*2)  # calc the largbin index
+        cmd = "x/" + word + hex(arena + 8 + (fastbinsize+2)*capsize + idx*capsize*2 - 2*capsize)  # calc the largbin index
         chunkhead["addr"] = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
         try :
             bins = trace_normal_bin(chunkhead,arena)
