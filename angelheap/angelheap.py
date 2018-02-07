@@ -14,13 +14,16 @@ main_arena_off = 0
 # thread
 thread_arena = 0
 enable_thread = False
-
+tcache_enable = False
+tcache = None
+tcache_max_bin = 0
 
 # chunks
 top = {}
 fastbinsize = 10
 fastbin = []
 fastchunk = [] #save fastchunk address for chunkinfo check
+tcache_entry = []
 last_remainder = {}
 unsortbin = []
 smallbin = {}  #{size:bin}
@@ -478,6 +481,57 @@ def get_fast_bin(arena=None):
             chunk["overlap"] = None
             fastbin[i].append(copy.deepcopy(chunk))
 
+def get_tcache():
+    global tcache
+    global tcache_enable
+    global tcache_max_bin
+    if capsize == 0 :
+        arch = getarch()
+    try :
+        tcache_max_bin = int(gdb.execute("x/" + word + " &mp_.tcache_bins",to_string=True).split(":")[1].strip(),16)
+        try :
+            tcache_enable = True
+            result = gdb.execute("x/" + word + "&tcache",to_string=True)
+            tcache = int(result.split(":")[1].strip(),16)
+        except :
+            heapbase = get_heapbase()
+            if heapbase != 0 :
+                tcache = heapbase + capsize*2
+    except :
+        tcache_enable = False
+        tcache = 0
+
+def get_tcache_entry():
+    global tcache_entry
+    get_tcache()
+    if not tcache_enable :
+        return
+    tcache_entry = []
+    if capsize == 0 :
+        arch = getarch()
+    if tcache and tcache_max_bin :
+        entry_start = tcache + tcache_max_bin
+    for i in range(tcache_max_bin):
+        tcache_entry.append([])
+        chunk = {}
+        is_overlap = (None,None)
+        cmd = "x/" + word + hex(entry_start + i*capsize)
+        entry = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
+        while entry and not is_overlap[0] :
+            chunk["addr"] = entry - capsize*2
+            cmd = "x/" + word + hex(chunk["addr"] + capsize)
+            try :
+                chunk["size"] = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16) & 0xfffffffffffffff8
+            except :
+                chunk["memerror"] = "invaild memory"
+                break
+            is_overlap = check_overlap(chunk["addr"],capsize*2*(i+2))
+            chunk["overlap"] = is_overlap
+            freememoryarea[hex(chunk["addr"])] = copy.deepcopy((chunk["addr"],chunk["addr"] + (capsize*2)*(i+2) ,chunk))
+            tcache_entry[i].append(copy.deepcopy(chunk))
+            cmd = "x/" + word + hex(chunk["addr"]+capsize*2)
+            chunk = {}
+            entry = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16) - 2*capsize
 
 def trace_normal_bin(chunkhead,arena=None):
     global freememoryarea 
@@ -656,15 +710,19 @@ def get_system_mem(arena=None):
         system_mem_off = 0x110*capsize
     system_mem = int(gdb.execute("x/" + word + hex(arena+system_mem_off),to_string=True).split(":")[1].strip(),16)
 
+
 def get_heap_info(arena=None):
     global main_arena
     global thread_arena
     global freememoryarea
     global top
+    global tcache_enable
+    global tcache
 
     top = {}
     freememoryarea = {}
     corruptbin = False
+
     if arena :
         get_system_mem(arena)
         get_unsortbin(arena)
@@ -673,6 +731,7 @@ def get_heap_info(arena=None):
             get_largebin(arena)
         get_fast_bin(arena)
         get_top_lastremainder(arena)
+        get_tcache_entry()
         return True
 
 
@@ -686,6 +745,7 @@ def get_heap_info(arena=None):
             get_largebin(thread_arena)
         get_fast_bin(thread_arena)
         get_top_lastremainder(thread_arena)
+        get_tcache_entry()
         return True
 
     elif main_arena and not enable_thread:
@@ -696,6 +756,7 @@ def get_heap_info(arena=None):
             get_largebin()
         get_fast_bin()
         get_top_lastremainder()
+        get_tcache_entry()
         return True
     return False
     
@@ -868,6 +929,16 @@ def freeable(victim):
     except :
         print("Can't access memory")
     
+def get_heapbase():
+    if (main_arena and not enable_thread) or thread_arena == main_arena :
+        heapbase = int(gdb.execute("x/" + word + " &mp_.sbrk_base",to_string=True).split(":")[1].strip(),16)
+    elif thread_arena :
+        arena_size = int(gdb.execute("p sizeof(main_arena)",to_string=True).split("=")[1].strip(),16)
+        heapbase = thread_arena + arena_size
+    else :
+        return None
+    return heapbase
+
 def chunkinfo(victim):
     global fastchunk
     if capsize == 0 :
@@ -1038,6 +1109,36 @@ def putfastbin(arena=None):
         print("")
     return True
 
+def put_tcache():
+    if not tcache_enable :
+        return
+    for i,entry in enumerate(tcache_entry):
+        cursize = (capsize*2)*(i+2)
+        if len(tcache_entry[i]) > 0 :
+            print("\033[33;1m(0x%02x)   tcache_entry[%d]:\033[37m " % (cursize,i),end = "")
+        for chunk in entry :
+            if "memerror" in chunk :
+                print("\033[31m0x%x (%s)\033[37m" % (chunk["addr"]+capsize*2,chunk["memerror"]),end = "")
+            elif chunk["overlap"] and chunk["overlap"][0]:
+                print("\033[31m0x%x (overlap chunk with \033[36m0x%x(%s)\033[31m )\033[37m" % (chunk["addr"]+capsize*2,chunk["overlap"][0]["addr"],chunk["overlap"][1]),end = "")
+            elif chunk == entry[0]  :
+                print("\033[34m0x%x\033[37m" % (chunk["addr"]+capsize*2),end = "")
+            else  :
+                if print_overlap :
+                    if find_overlap(chunk,entry):
+                        print("\033[31m0x%x\033[37m" % chunk["addr"],end ="")
+                    else :
+                        print("0x%x" % chunk["addr"],end = "")
+                else :
+                    print("0x%x" % chunk["addr"],end = "")
+            if chunk != entry[-1]:
+                print(" --> ",end = "")
+        if len(tcache_entry[i]) > 0 :
+            print("")
+    return True
+
+
+
 def putheapinfo(arena=None):
     if capsize == 0 :
         arch = getarch()
@@ -1097,7 +1198,9 @@ def putheapinfo(arena=None):
                 print("0x%x \33[33m(size : 0x%x)\033[37m" % (chunk["addr"],chunk["size"]),end = "")
             if chunk != bins[-1]:
                 print(" <--> ",end = "")
-        print("") 
+        print("")
+    if not arena :
+        put_tcache()
     if corruptbin :
         print("\033[31m Some bins is corrupted !\033[37m")
 
@@ -1135,20 +1238,18 @@ def putinused():
 
 
 
+
 def parse_heap(arena=None):
     if capsize == 0 :
         arch = getarch()
     if not get_heap_info(arena):
-        print("Can't find heap info")
+        print("can't find heap info")
         return
-    if (main_arena and not enable_thread) or thread_arena == main_arena :
-        heapbase = int(gdb.execute("x/" + word + " &mp_.sbrk_base",to_string=True).split(":")[1].strip(),16)
-    elif thread_arena :
-        arena_size = int(gdb.execute("p sizeof(main_arena)",to_string=True).split("=")[1].strip(),16)
-        heapbase = thread_arena + arena_size
-    else :
+
+    chunkaddr = get_heapbase()
+    if not chunkaddr:
         print("Can't find heap")
-    chunkaddr = heapbase
+        return
     print('\033[1;33m{:<20}{:<20}{:<21}{:<20}{:<18}{:<18}\033[0m'.format('addr', 'prev', 'size', 'status', 'fd', 'bk'))
     while chunkaddr != top["addr"] :
         try :
