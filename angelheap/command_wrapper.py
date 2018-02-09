@@ -31,6 +31,10 @@ class AngelHeapCmd(object):
         """ Print some information of multiheap """
         angelheap.putheapinfoall()
 
+    def arenainfo(self):
+        """ Print all arena info """
+        angelheap.putarenainfo()
+
     def chunkinfo(self,*arg):
         """ Print chunk information of victim"""
         (victim,) = normalize_argv(arg,1)

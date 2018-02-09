@@ -34,7 +34,9 @@ If you want to use the feature of heapinfo and tracemalloc , you need to install
 + `heapinfo` : Print some infomation of heap
 	+ heapinfo (Address of arena)
 	+ default is the arena of current thread
+	+ If tcache is enable, it would show infomation of tcache entry
 + `heapinfoall` : Print some infomation of heap (all threads)
++ `arenainfo` : Print some infomation of all arena
 + `chunkinfo`: Print the infomation of chunk
     + chunkinfo (Address of victim)
 + `chunkptr` : Print the infomation of chunk 
@@ -68,7 +70,7 @@ If you want to use the feature of heapinfo and tracemalloc , you need to install
 ![heapinfo](http://i.imgur.com/xhTc8Gv.png)
 + Heapinfoall
 
-![heapinfoall](http://i.imgur.com/DYjc3SB.png)
+![heapinfoall](https://i.imgur.com/kRMXPZz.png)
 
 + parseheap
 
