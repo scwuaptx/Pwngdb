@@ -548,7 +548,7 @@ def get_tcache_entry():
                 tcache_entry[i].append(copy.deepcopy(chunk))
                 cmd = "x/" + word + hex(chunk["addr"]+capsize*2)
                 chunk = {}
-                entry = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16) - 2*capsize
+                entry = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
 
 def trace_normal_bin(chunkhead,arena=None):
     global freememoryarea 
@@ -1145,9 +1145,9 @@ def put_tcache():
                     if find_overlap(chunk,entry):
                         print("\033[31m0x%x\033[37m" % chunk["addr"],end ="")
                     else :
-                        print("0x%x" % chunk["addr"],end = "")
+                        print("0x%x" % (chunk["addr"] + capsize*2),end = "")
                 else :
-                    print("0x%x" % chunk["addr"],end = "")
+                    print("0x%x" % (chunk["addr"] + capsize*2),end = "")
             if chunk != entry[-1]:
                 print(" --> ",end = "")
         if len(tcache_entry[i]) > 0 :
