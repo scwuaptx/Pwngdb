@@ -417,7 +417,7 @@ def get_top_lastremainder(arena=None):
     if capsize == 0 :
         arch = getarch()
     #get top
-    cmd = "x/" + word + hex(arena + fastbinsize*capsize + 8 )
+    cmd = "x/" + word + "&((struct malloc_state *)" + hex(arena) + ").top"
     chunk["addr"] =  int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
     chunk["size"] = 0
     if chunk["addr"] :
@@ -431,7 +431,7 @@ def get_top_lastremainder(arena=None):
     top = copy.deepcopy(chunk)
     #get last_remainder
     chunk = {}
-    cmd = "x/" + word + hex(arena + (fastbinsize+1)*capsize + 8 )
+    cmd = "x/" + word + "&((struct malloc_state *)" + hex(arena) + ").last_remainder"
     chunk["addr"] =  int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
     chunk["size"] = 0
     if chunk["addr"] :
@@ -454,11 +454,13 @@ def get_fast_bin(arena=None):
     #freememoryarea = []
     if capsize == 0 :
         arch = getarch()
+    cmd = "x/" + word + "&((struct malloc_state *)" + hex(arena) + ").fastbinsY"
+    fastbinsY = int(gdb.execute(cmd,to_string=True).split(":")[0].split()[0].strip(),16)
     for i in range(fastbinsize-3):
         fastbin.append([])
         chunk = {}
         is_overlap = (None,None)
-        cmd = "x/" + word  + hex(arena + i*capsize + 8)
+        cmd = "x/" + word  + hex(fastbinsY + i*capsize)
         chunk["addr"] = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
 
         while chunk["addr"] and not is_overlap[0]:
@@ -638,7 +640,7 @@ def get_unsortbin(arena=None):
     if capsize == 0 :
         arch = getarch()
     chunkhead = {}
-    cmd = "x/" + word + hex(arena + (fastbinsize+2)*capsize+8)
+    cmd = "x/" + word + "&((struct malloc_state *)" + hex(arena) + ").bins"
     chunkhead["addr"] = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
     unsortbin = trace_normal_bin(chunkhead,arena)
 
@@ -650,10 +652,12 @@ def get_smallbin(arena=None):
     if capsize == 0 :
         arch = getarch()
     max_smallbin_size = 512*int(capsize/4)
+    cmd = "x/" + word + "&((struct malloc_state *)" + hex(arena) + ").bins"
+    bins_addr = int(gdb.execute(cmd,to_string=True).split(":")[0].split()[0].strip(),16)
     for size in range(capsize*4,max_smallbin_size,capsize*2):
         chunkhead = {}
-        idx = int((size/(capsize*2)))-1
-        cmd = "x/" + word + hex(arena + (fastbinsize+2)*capsize+8 + idx*capsize*2)  # calc the smallbin index
+        idx = int((size/(capsize*2)))-1 
+        cmd = "x/" + word + hex(bins_addr + idx*capsize*2)  # calc the smallbin index
         chunkhead["addr"] = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
         try :
             bins = trace_normal_bin(chunkhead,arena)
@@ -703,9 +707,11 @@ def get_largebin(arena=None):
     if capsize == 0 :
         arch = getarch()
     min_largebin = 512*int(capsize/4)
+    cmd = "x/" + word + "&((struct malloc_state *)" + hex(arena) + ").bins"
+    bins_addr = int(gdb.execute(cmd,to_string=True).split(":")[0].split()[0].strip(),16)
     for idx in range(64,128):
         chunkhead = {}
-        cmd = "x/" + word + hex(arena + 8 + (fastbinsize+2)*capsize + idx*capsize*2 - 2*capsize)  # calc the largbin index
+        cmd = "x/" + word + hex(bins_addr + idx*capsize*2 - 2*capsize)  # calc the largbin index
         chunkhead["addr"] = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
         try :
             bins = trace_normal_bin(chunkhead,arena)
@@ -721,11 +727,8 @@ def get_system_mem(arena=None):
         arena = main_arena
     if capsize == 0 :
         arch = getarch()
-    if capsize == 4 :
-        system_mem_off = 0x110*capsize + 0xc
-    else :
-        system_mem_off = 0x110*capsize
-    system_mem = int(gdb.execute("x/" + word + hex(arena+system_mem_off),to_string=True).split(":")[1].strip(),16)
+    cmd = "x/" + word + "&((struct malloc_state *)" + hex(arena) + ").system_mem" 
+    system_mem = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
 
 
 def get_heap_info(arena=None):
