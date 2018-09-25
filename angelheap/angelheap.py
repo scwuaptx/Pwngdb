@@ -20,7 +20,7 @@ tcache_max_bin = 0
 
 # chunks
 top = {}
-fastbinsize = 10
+fastbinsize = 13
 fastbin = []
 fastchunk = [] #save fastchunk address for chunkinfo check
 tcache_entry = []
@@ -1204,7 +1204,7 @@ def putheapinfo(arena=None):
                 print(" <--> ",end = "")
         print("") 
     for idx,bins in largebin.items():
-        print("\033[33m  %15s[%2d]:\033[37m " % ("largebin",idx),end="")
+        print("\033[33m  %15s[%2d]:\033[37m " % ("largebin",idx-64),end="")
         for chunk in bins :
             if "memerror" in chunk :
                 print("\033[31m0x%x (%s)\033[37m" % (chunk["addr"],chunk["memerror"]),end = "")
