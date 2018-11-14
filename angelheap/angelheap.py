@@ -1275,7 +1275,8 @@ def parse_heap(arena=None):
         print("can't find heap info")
         return
 
-    chunkaddr = get_heapbase()
+    hb = get_heapbase()
+    chunkaddr = hb
     if not chunkaddr:
         print("Can't find heap")
         return
@@ -1287,6 +1288,9 @@ def parse_heap(arena=None):
             cmd = "x/" + word + hex(chunkaddr + capsize*1)
             size = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
             cmd = "x/" + word + hex(chunkaddr + capsize*2)
+            if size == 0 and chunkaddr == hb :
+                chunkaddr += capsize*2
+                continue
             fd = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
             cmd = "x/" + word + hex(chunkaddr + capsize*3)
             bk = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
