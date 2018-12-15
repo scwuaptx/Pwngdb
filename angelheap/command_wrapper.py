@@ -9,7 +9,7 @@ class AngelHeapCmd(object):
     commands = []
     def __init__(self):
         # list all commands
-        self.commands = [cmd for cmd in dir(self) if callable(getattr(self, cmd)) ]  
+        self.commands = [cmd for cmd in dir(self) if callable(getattr(self, cmd)) ]
 
     def tracemalloc(self,*arg):
         """ Trace the malloc and free and detect some error """
@@ -59,7 +59,7 @@ class AngelHeapCmd(object):
         """ Calculate the nb in the house of force """
         (target,) = normalize_argv(arg,1)
         angelheap.force(target)
-    
+
     def printfastbin(self):
         """ Print the fastbin """
         angelheap.putfastbin()
@@ -81,10 +81,22 @@ class AngelHeapCmdWrapper(gdb.Command):
     def __init__(self):
         super(AngelHeapCmdWrapper,self).__init__("angelheap",gdb.COMMAND_USER)
 
+    def try_eval(self, expr):
+        try:
+            return gdb.parse_and_eval(expr)
+        except:
+            #print("Unable to parse expression: {}".format(expr))
+            return expr
+
+    def eval_argv(self, expressions):
+        """ Leave command alone, let GDB parse and evaluate arguments """
+        return [expressions[0]] + [ self.try_eval(expr) for expr in expressions[1:] ]
+
     def invoke(self,args,from_tty):
         global angelheap_cmd
         self.dont_repeat()
-        arg = args.split()
+        expressions = gdb.string_to_argv(args)
+        arg = self.eval_argv(expressions)
         if len(arg) > 0 :
             cmd = arg[0]
 
@@ -96,7 +108,7 @@ class AngelHeapCmdWrapper(gdb.Command):
         else :
             print("Unknow command")
 
-        return 
+        return
 
 class Alias(gdb.Command):
     """ angelheap Alias """
