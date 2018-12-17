@@ -488,10 +488,10 @@ def get_curthread():
     thread_id = int(gdb.execute(cmd,to_string=True).split("thread is")[1].split()[0].strip())
     return thread_id
 
-def get_max_thread():
-    cmd = "info thread"
-    max_thread = int(gdb.execute(cmd,to_string=True).replace("*","").split("\n")[-2].split()[0].strip())
-    return max_thread
+def get_all_threads():
+    cmd = "info threads"
+    all_threads = [int(line.split()[0].strip()) for line in gdb.execute(cmd, to_string=True).replace("*", "").split("\n")[1:-1]]
+    return all_threads
 
 def thread_cmd_execute(thread_id,thread_cmd):
     cmd = "thread apply %d %s" % (thread_id,thread_cmd)
@@ -1251,8 +1251,8 @@ def putarenainfo():
 
 def putheapinfoall():
     cur_thread_id = get_curthread()
-    max_thread = get_max_thread()
-    for thread_id in range(1,max_thread+1):
+    all_threads = get_all_threads()
+    for thread_id in all_threads:
         if thread_id == cur_thread_id :
             print("\033[33;1m"+("  Thread " + str(thread_id) + "  ").center(50,"=") + "\033[0m",end="")
         else :
