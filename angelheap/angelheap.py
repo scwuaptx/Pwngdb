@@ -565,6 +565,7 @@ def get_tcache_entry():
                     chunk["size"] = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16) & 0xfffffffffffffff8
                 except :
                     chunk["memerror"] = "invaild memory"
+                    tcache_entry[i].append(copy.deepcopy(chunk))
                     break
                 is_overlap = check_overlap(chunk["addr"],capsize*2*(i+2))
                 chunk["overlap"] = is_overlap
