@@ -309,8 +309,10 @@ class PwngdbCmd(gdb.Command):
 
     def invoke(self,args,from_tty):
         self.dont_repeat()
-        expressions = gdb.string_to_argv(args)
-        arg = self.eval_argv(expressions)
+        # Don't eval expression in PwngdbCmd commands
+        #expressions = gdb.string_to_argv(args)
+        #arg = self.eval_argv(expressions)
+        arg = args.split()
         if len(arg) > 0 :
             cmd = arg[0]
             if cmd in pwncmd.commands :
