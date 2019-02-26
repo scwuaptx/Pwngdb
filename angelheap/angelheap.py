@@ -959,6 +959,13 @@ def freeable(victim):
                 if nextsize >= system_mem :
                     print("\033[32mFreeable :\033[1;31m False -> Chunkaddr (0x%x) invalid next size (size(0x%x) > system_mem(0x%x) )\033[37m" % (chunkaddr,size,system_mem))
                     return
+                if not prev_inuse : 
+                    cmd = "x/" + word + hex(chunkaddr - prev_size + capsize)
+                    prev_chunk_size = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16) & 0xfffffffffffffff8
+                    if prev_size  != prev_chunk_size :
+                        print("\033[32mFreeable :\033[1;31m False -> p->size(0x%x) != next->prevsize(0x%x) \033[37m" % (prev_chunk_size,prev_size))
+                        return
+                    
                 if len(unsortbin) > 0 :
                     bck = unsortbin[0]["addr"]
                     cmd = "x/" + word + hex(bck + capsize*2)
