@@ -7,6 +7,7 @@ import subprocess
 import re
 import copy
 import struct
+import os
 # main_arena
 main_arena = 0
 main_arena_off = 0 
@@ -324,6 +325,25 @@ def getarch():
     else :
         return "error"
 
+def infoprocmap():
+    """ Use gdb command 'info proc map' to get the memory mapping """
+    """ Notice: No permission info """
+    resp = gdb.execute("info proc map", to_string=True).split("\n")
+    resp = '\n'.join(resp[i] for i  in range(4, len(resp))).strip().split("\n")
+    infomap = ""
+    for l in resp:
+        line = ""
+        first = True
+        for sep in l.split(" "):
+            if len(sep) != 0:
+                if first: # start address
+                    line += sep + "-"
+                    first = False
+                else:
+                    line += sep + " "
+        line = line.strip() + "\n"
+        infomap += line
+    return infomap
 
 def procmap():
     data = gdb.execute('info proc exe',to_string = True)
@@ -331,10 +351,14 @@ def procmap():
     if pid :
         pid = pid.group()
         pid = pid.split()[1]
-        maps = open("/proc/" + pid + "/maps","r")
-        infomap = maps.read()
-        maps.close()
-        return infomap
+        fpath = "/proc/" + pid + "/maps"
+        if os.path.isfile(fpath): # if file exist, read memory mapping directly from file
+            maps = open(fpath)
+            infomap = maps.read()
+            maps.close()
+            return infomap
+        else: # if file doesn't exist, use 'info proc map' to get the memory mapping
+            return infoprocmap()
     else :
         return "error"
 
