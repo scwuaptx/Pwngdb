@@ -605,11 +605,11 @@ def getfmtarg(addr):
     if capsize == 0 :
         getarch()
     if arch == "i386" :
-        start = get_reg("esp")
+        start = get_reg("esp") + 4
         idx = (addr- start)/4
         print("The index of format argument : %d" % idx)
     elif arch == "x86-64" :
-        start = get_reg("rsp")
+        start = get_reg("rsp") + 8
         idx = (addr - start)/8 + 6
         print("The index of format argument : %d" % idx)
     else :
