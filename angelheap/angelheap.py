@@ -26,6 +26,7 @@ fastbin = []
 fastchunk = [] #save fastchunk address for chunkinfo check
 tcache_entry = []
 tcache_count = []
+all_tcache_entry = [] #save tcache address for chunkinfo check
 last_remainder = {}
 unsortbin = []
 smallbin = {}  #{size:bin}
@@ -595,6 +596,7 @@ def get_tcache_entry():
                 chunk["overlap"] = is_overlap
                 freememoryarea[hex(chunk["addr"])] = copy.deepcopy((chunk["addr"],chunk["addr"] + (capsize*2)*(i+2) ,chunk))
                 tcache_entry[i].append(copy.deepcopy(chunk))
+                all_tcache_entry.append(chunk["addr"])
                 cmd = "x/" + word + hex(chunk["addr"]+capsize*2)
                 chunk = {}
                 entry = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
@@ -1039,6 +1041,8 @@ def chunkinfo(victim):
         if status:
             if chunkaddr in fastchunk :
                 print("\033[1;32mStatus : \033[1;34m Freed (fast) \033[37m")
+            elif chunkaddr in all_tcache_entry:
+                print("\033[1;32mStatus : \033[1;34m Freed (tcache) \033[37m")
             else :
                 print("\033[1;32mStatus : \033[31m Used \033[37m")
         else :
@@ -1359,7 +1363,7 @@ def parse_heap(arena=None):
                 print("\033[31mCorrupt ?! \033[0m(size == 0) (0x%x)" % chunkaddr)
                 break 
             if status :
-                if chunkaddr in fastchunk :
+                if chunkaddr in fastchunk or chunkaddr in all_tcache_entry:
                     msg = "\033[1;34m Freed \033[0m"
                     print('0x{:<18x}0x{:<18x}0x{:<18x}{:<16}{:>18}{:>18}'.format(chunkaddr, prev_size, size, msg, hex(fd), "None"))
                 else :
