@@ -133,7 +133,7 @@ class PwnCmd(object):
             print("========== function ==========")
             for f in magic_function :
                 print("\033[34m" + f  + ":" + "\033[33m" +hex(getoff(f))) 
-            print("\033[37m========== variables ==========")
+            print("\033[00m========== variables ==========")
             for v in magic_variable :
                 cmd = "x/" + word + "&" +v
                 content = gdb.execute(cmd,to_string=True).split(":")[1].strip()
