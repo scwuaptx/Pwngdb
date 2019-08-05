@@ -18,6 +18,7 @@ enable_thread = False
 tcache_enable = False
 tcache = None
 tcache_max_bin = 0
+tcache_counts_size = 0
 
 # chunks
 top = {}
@@ -528,6 +529,7 @@ def get_tcache():
     global tcache
     global tcache_enable
     global tcache_max_bin
+    global tcache_counts_size
     if capsize == 0 :
         arch = getarch()
     try :
@@ -546,6 +548,7 @@ def get_tcache():
                     cmd = "x/" + word + hex(heapbase + capsize*1)
                     f_size = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
                 tcache = heapbase + capsize*2
+                tcache_counts_size = 1 if (f_size & ~7) < 0x290 else 2
             else :
                 tcache = 0
     except :
@@ -559,12 +562,12 @@ def get_tcache_count() :
         return
     if capsize == 0 :
         arch = getarch()
-    count_size = int(tcache_max_bin/capsize)
+    count_size = int(tcache_max_bin * tcache_counts_size / capsize)
     for i in range(count_size):
         cmd = "x/" + word + hex(tcache + i*capsize)
         c = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
-        for j in range(capsize):
-            tcache_count.append((c >> j*8) & 0xff)
+        for j in range(int(capsize / tcache_counts_size)):
+            tcache_count.append((c >> j * 8*tcache_counts_size) & 0xff)
 
 def get_tcache_entry():
     global tcache_entry
@@ -576,7 +579,7 @@ def get_tcache_entry():
     if capsize == 0 :
         arch = getarch()
     if tcache and tcache_max_bin :
-        entry_start = tcache + tcache_max_bin
+        entry_start = tcache + tcache_max_bin * tcache_counts_size
         for i in range(tcache_max_bin):
             tcache_entry.append([])
             chunk = {}
