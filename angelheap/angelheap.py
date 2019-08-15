@@ -537,7 +537,7 @@ def get_tcache():
         try :
             tcache_enable = True
             tcache = int(gdb.execute("x/" + word + "&tcache",to_string=True).split(":")[1].strip(),16)
-            tps_size = int(gdb.execute("p sizeof(*tcache)",to_string=True).split("=")[1].strip(),16)
+            tps_size = int(gdb.execute("p sizeof(*tcache)",to_string=True).split("=")[1].strip())
             if tps_size > 0x240:
                 tcache_counts_size = 2
         except :
