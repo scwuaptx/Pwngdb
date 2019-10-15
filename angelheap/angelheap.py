@@ -1197,7 +1197,10 @@ def put_tcache():
     if not tcache_enable :
         return
     for i,entry in enumerate(tcache_entry):
-        cursize = (capsize*2)*(i+2)
+        if capsize == 4 :
+            cursize = (8*2)*(i+1)
+        else :
+            cursize = (8*2)*(i+2)
         if len(tcache_entry[i]) > 0 :
             print("\033[33;1m(0x%02x)   tcache_entry[%d]\033[32m(%d)\033[33;1m:\033[37m " % (cursize,i,tcache_count[i]),end = "")
         elif tcache_count[i] > 0:            
