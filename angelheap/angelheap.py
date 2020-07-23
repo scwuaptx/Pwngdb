@@ -1016,7 +1016,7 @@ def get_heapbase():
         heapbase = int(gdb.execute("x/" + word + " &mp_.sbrk_base",to_string=True).split(":")[1].strip(),16)
     elif thread_arena :
         arena_size = int(gdb.execute("p sizeof(main_arena)",to_string=True).split("=")[1].strip(),16)
-        heapbase = thread_arena + arena_size
+        heapbase = (thread_arena + arena_size + 0xf) & ~0xf
     else :
         return None
     return heapbase
