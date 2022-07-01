@@ -8,11 +8,18 @@ https://github.com/scwuaptx/Pwngdb
 
 import argparse
 
+import gdb
 import pwndbg.commands
 import pwndbg.angelheap as angelheap
 
 # initialize angelheap when process starts
-pwndbg.commands.Command(angelheap.init_angelheap, command_name='hook-run')
+gdb.execute('''define hook-run
+python
+import pwndbg.angelheap as angelheap
+angelheap.init_angelheap()
+end
+end
+''')
 
 parser = argparse.ArgumentParser()
 parser.description = "Trace the malloc and free and detect some error."
