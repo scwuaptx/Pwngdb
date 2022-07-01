@@ -11,6 +11,10 @@ GDB for pwn.
 
 If you dont want to use gdb-peda , you can modify the gdbinit to remove it.
 
+### pwndbg
+
+If you only want to install with pwndbg, see [pwndbg/README.md](pwndbg/README.md)
+
 ### Heapinfo 
 
 If you want to use the feature of heapinfo and tracemalloc , you need to install libc debug file (libc6-dbg & libc6-dbg:i386 for debian package) 
