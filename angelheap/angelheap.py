@@ -947,7 +947,7 @@ def unlinkable(chunkaddr,fd = None ,bk = None):
         next_prev_size = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
         if not fd :
             cmd = "x/" + word + hex(chunkaddr + capsize*2)
-            fd = int(gdb.execute(cmd,to_string=true).split(":")[1].strip(),16)
+            fd = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
         if not bk :
             cmd = "x/" + word + hex(chunkaddr + capsize*3)
             bk = int(gdb.execute(cmd,to_string=True).split(":")[1].strip(),16)
