@@ -1,6 +1,11 @@
 from __future__ import print_function
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""
+Pwngdb by angenboy
+
+https://github.com/scwuaptx/Pwngdb
+"""
 
 import gdb
 import subprocess
@@ -8,6 +13,10 @@ import re
 import copy
 import struct
 import os
+
+import pwndbg.arch
+import pwndbg.vmmap
+
 # main_arena
 main_arena = 0
 main_arena_off = 0 
@@ -301,79 +310,16 @@ def getarch():
     global capsize
     global word
     global arch
-
-    data = gdb.execute('show arch',to_string = True)
-    tmp =  re.search("currently.*",data)
-    if tmp :
-        info = tmp.group()
-        if "x86-64" in info:
-            capsize = 8
-            word = "gx "
-            arch = "x86-64"
-            return "x86-64"
-        elif "aarch64" in info :
-            capsize = 8
-            word = "gx "
-            arch = "aarch64"
-            return "aarch64"
-        elif "arm" in info :
-            capsize = 4
-            word = "wx "
-            arch = "arm"
-            return "arm"
-        else :
-            word = "wx "
-            capsize = 4
-            arch = "i386"
-            return  "i386"
-    else :
-        return "error"
-
-def infoprocmap():
-    """ Use gdb command 'info proc map' to get the memory mapping """
-    """ Notice: No permission info """
-    resp = gdb.execute("info proc map", to_string=True).split("\n")
-    resp = '\n'.join(resp[i] for i  in range(4, len(resp))).strip().split("\n")
-    infomap = ""
-    for l in resp:
-        line = ""
-        first = True
-        for sep in l.split(" "):
-            if len(sep) != 0:
-                if first: # start address
-                    line += sep + "-"
-                    first = False
-                else:
-                    line += sep + " "
-        line = line.strip() + "\n"
-        infomap += line
-    return infomap
-
-def procmap():
-    data = gdb.execute('info proc exe',to_string = True)
-    pid = re.search('process.*',data)
-    if pid :
-        pid = pid.group()
-        pid = pid.split()[1]
-        fpath = "/proc/" + pid + "/maps"
-        if os.path.isfile(fpath): # if file exist, read memory mapping directly from file
-            maps = open(fpath)
-            infomap = maps.read()
-            maps.close()
-            return infomap
-        else: # if file doesn't exist, use 'info proc map' to get the memory mapping
-            return infoprocmap()
-    else :
-        return "error"
+    capsize = pwndbg.arch.ptrsize
+    word = "gx " if capsize == 8 else "x "
+    arch = pwndbg.arch.current
+    return arch
 
 def libcbase():
-    infomap = procmap()
-    data = re.search(".*libc-.*\.so",infomap)
-    if data :
-        libcaddr = data.group().split("-")[0]
-        return int(libcaddr,16)
-    else :
-        return 0
+    for p in pwndbg.vmmap.get():
+        if re.search(".*libc-.*", p.objfile):
+            return p.start
+    return 0
 
 def get_libc_version():
     global libc_version
@@ -823,6 +769,7 @@ def get_largebin(arena=None):
         if bins and len(bins) > 0 :
             largebin[idx] = copy.deepcopy(bins)
 
+
 def get_system_mem(arena=None):
     global system_mem
     if not arena :
@@ -887,12 +834,7 @@ def get_heap_info(arena=None):
 
         return True
     return False
-    
 
-def get_reg(reg):
-    cmd = "info register " + reg
-    result = int(gdb.execute(cmd,to_string=True).split()[1].strip(),16)
-    return result
 
 def trace_malloc():
     global mallocbp
