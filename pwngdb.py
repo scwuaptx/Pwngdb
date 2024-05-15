@@ -403,7 +403,7 @@ def getprocname(relative=False):
 
 def libcbase():
     infomap = procmap()
-    data = re.search(".*libc.*\.so",infomap)
+    data = re.search(r".*libc.*\.so",infomap)
     if data :
         libcaddr = data.group().split("-")[0]
         gdb.execute("set $libc=%s" % hex(int(libcaddr,16)))
@@ -413,7 +413,7 @@ def libcbase():
 
 def ldbase():
     infomap = procmap()
-    data = re.search(".*ld.*\.so",infomap)
+    data = re.search(r".*ld.*\.so",infomap)
     if data :
         ldaddr = data.group().split("-")[0]
         gdb.execute("set $ld=%s" % hex(int(ldaddr,16)))
@@ -423,7 +423,7 @@ def ldbase():
 
 def getheapbase():
     infomap = procmap()
-    data = re.search(".*heap\]",infomap)
+    data = re.search(r".*heap\]",infomap)
     if data :
         heapbase = data.group().split("-")[0]
         gdb.execute("set $heap=%s" % hex(int(heapbase,16)))
@@ -607,11 +607,11 @@ def getfmtarg(addr):
     if arch == "i386" :
         start = get_reg("esp")
         idx = (addr- start)/4
-        print("The index of format argument : %d (\"\%%%d$p\")" % (idx,idx - 1))
+        print(r"The index of format argument : %d (\"\%%%d$p\")" % (idx,idx - 1))
     elif arch == "x86-64" :
         start = get_reg("rsp")
         idx = (addr - start)/8 + 6
-        print("The index of format argument : %d (\"\%%%d$p\")" % (idx,idx - 1))
+        print(r"The index of format argument : %d (\"\%%%d$p\")" % (idx,idx - 1))
     else :
         print("Not support the arch")
 
