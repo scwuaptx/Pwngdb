@@ -368,7 +368,7 @@ def procmap():
 
 def libcbase():
     infomap = procmap()
-    data = re.search(".*libc-.*\.so",infomap)
+    data = re.search(r".*libc-.*\.so",infomap)
     if data :
         libcaddr = data.group().split("-")[0]
         return int(libcaddr,16)
