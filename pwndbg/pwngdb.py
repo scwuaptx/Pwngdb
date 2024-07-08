@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Pwngdb by angenboy
+Pwngdb by angelboy
 
 https://github.com/scwuaptx/Pwngdb
 """
@@ -16,12 +16,12 @@ import subprocess
 
 import gdb
 
-import pwndbg.arch
-import pwndbg.proc
+import pwndbg.gdblib.arch
+import pwndbg.gdblib.proc
 import pwndbg.search
-import pwndbg.symbol
-import pwndbg.memory
-import pwndbg.vmmap
+import pwndbg.gdblib.symbol
+import pwndbg.gdblib.memory
+import pwndbg.gdblib.vmmap
 
 magic_variable = ["__malloc_hook", "__free_hook", "__realloc_hook", "stdin", "stdout", "_IO_list_all",
                   "__after_morecore_hook"]

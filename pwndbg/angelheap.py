@@ -2,7 +2,7 @@ from __future__ import print_function
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Pwngdb by angenboy
+Pwngdb by angelboy
 
 https://github.com/scwuaptx/Pwngdb
 """
@@ -14,8 +14,8 @@ import copy
 import struct
 import os
 
-import pwndbg.arch
-import pwndbg.vmmap
+import pwndbg.gdblib.arch
+import pwndbg.gdblib.vmmap
 
 # main_arena
 main_arena = 0

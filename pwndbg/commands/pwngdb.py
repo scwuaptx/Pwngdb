@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Pwngdb by angenboy
+Pwngdb by angelboy
 
 https://github.com/scwuaptx/Pwngdb
 """
@@ -16,12 +16,12 @@ import argparse
 import gdb
 
 import pwndbg.commands
-import pwndbg.arch
-import pwndbg.proc
+import pwndbg.gdblib.arch
+import pwndbg.gdblib.proc
 import pwndbg.search
-import pwndbg.regs
-import pwndbg.symbol
-import pwndbg.memory
+import pwndbg.gdblib.regs
+import pwndbg.gdblib.symbol
+import pwndbg.gdblib.memory
 import pwndbg.pwngdb as pwngdb
 
 
@@ -83,7 +83,7 @@ def codebase():
 
 @pwndbg.commands.ArgparsedCommand("Get tls base.")
 @pwndbg.commands.OnlyWhenRunning
-def tls():
+def pwngdb_tls():
     tlsaddr = pwngdb.gettls()
     if tlsaddr != -1:
         print("\033[34m" + "tls : " + "\033[37m" + hex(tlsaddr))
