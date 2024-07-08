@@ -48,7 +48,7 @@ def procmap():
 
 def libcbase():
     for p in pwndbg.vmmap.get():
-        if re.search(".*libc-.*", p.objfile):
+        if re.search(r".*libc-.*", p.objfile):
             libcaddr = p.start
             gdb.execute("set $libc={}".format(hex(libcaddr)))
             return libcaddr
@@ -57,7 +57,7 @@ def libcbase():
 
 def getheapbase():
     for p in pwndbg.vmmap.get():
-        if re.search(".*heap\]", p.objfile):
+        if re.search(r".*heap\]", p.objfile):
             heapbase = p.start
             gdb.execute("set $heap={}".format(hex(heapbase)))
             return heapbase
@@ -66,7 +66,7 @@ def getheapbase():
 
 def ldbase():
     for p in pwndbg.vmmap.get():
-        if re.search(".*ld.*\.so", p.objfile):
+        if re.search(r".*ld.*\.so", p.objfile):
             ldbase = p.start
             gdb.execute("set $ld={}".format(hex(ldbase)))
             return ldbase

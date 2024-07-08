@@ -317,7 +317,7 @@ def getarch():
 
 def libcbase():
     for p in pwndbg.vmmap.get():
-        if re.search(".*libc-.*", p.objfile):
+        if re.search(r".*libc-.*", p.objfile):
             return p.start
     return 0
 
