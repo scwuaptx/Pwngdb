@@ -134,11 +134,11 @@ def getoff(symbol):
 
 
 def iscplus():
-    return "CXX" in subprocess.check_output("readelf -s {}".format(pwndbg.proc.exe), shell=True).decode("utf8")
+    return "CXX" in subprocess.check_output("readelf -s {}".format(pwndbg.gdblib.proc.exe), shell=True).decode("utf8")
 
 
 def searchcall(symbol):
-    procname = pwndbg.proc.exe
+    procname = pwndbg.gdblib.proc.exe
     cmd = "objdump -d -M intel {} {}".format("--demangle" if iscplus() else "", procname)
     cmd += "| grep 'call.*{}@plt'".format(symbol)
     try:
@@ -148,7 +148,7 @@ def searchcall(symbol):
 
 
 def ispie():
-    result = subprocess.check_output("readelf -h {}".format(pwndbg.proc.exe), shell=True).decode("utf8")
+    result = subprocess.check_output("readelf -h {}".format(pwndbg.gdblib.proc.exe), shell=True).decode("utf8")
     return True if re.search("DYN", result) else False
 
 
@@ -164,7 +164,7 @@ def showfp(addr):
 
 
 def showfpchain():
-    _IO_list_all_addr = pwndbg.symbol.address("_IO_list_all")
+    _IO_list_all_addr = pwndbg.gdblib.symbol.address("_IO_list_all")
     head = pwndbg.gdblib.memory.read(_IO_list_all_addr, pwndbg.gdblib.arch.ptrsize)
     head = int.from_bytes(head, byteorder=pwndbg.gdblib.arch.endian)
     print("\033[32mfpchain:\033[1;37m ", end="")
