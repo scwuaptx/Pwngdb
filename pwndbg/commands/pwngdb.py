@@ -32,12 +32,12 @@ parser.add_argument("processname", nargs='?', type=str, default=None, help="Proc
 @pwndbg.commands.ArgparsedCommand(parser)
 def at(processname=None):
     if processname is None:
-        processname = pwndbg.proc.exe
+        processname = pwndbg.gdblib.proc.exe
     try :
         pidlist = map(int, subprocess.check_output('pidof $(basename {})'.format(processname), shell=True).decode('utf8').split())
 
         for pid in pidlist:
-            if pid == pwndbg.proc.pid:
+            if pid == pwndbg.gdblib.proc.pid:
                 continue
             print('attaching to {} ...'.format(processname))
             gdb.execute("attach {}".format(pid))
@@ -47,7 +47,7 @@ def at(processname=None):
             pwngdb.ldbase()
             return
 
-        print("already attached on {}".format(pwndbg.proc.pid))
+        print("already attached on {}".format(pwndbg.gdblib.proc.pid))
     except:
         print("no such process:", processname)
 
@@ -97,15 +97,15 @@ parser.add_argument("addr", nargs='?', type=int, help="Address of the target")
 @pwndbg.commands.ArgparsedCommand(parser)
 @pwndbg.commands.OnlyWhenRunning
 def fmtarg(addr):
-    if pwndbg.arch.current == "i386":
+    if pwndbg.gdblib.arch.current == "i386":
         reg = "esp"
-    elif pwndbg.arch.current == "x86-64":
+    elif pwndbg.gdblib.arch.current == "x86-64":
         reg = "rsp"
     else:
         print("arch not support")
         return
-    start = pwndbg.regs[reg]
-    idx = (addr - start) / (pwndbg.arch.ptrsize) + 6
+    start = pwndbg.gdblib.regs[reg]
+    idx = (addr - start) / (pwndbg.gdblib.arch.ptrsize) + 6
     print("The index of format argument : %d" % idx)
 
 
@@ -133,8 +133,8 @@ parser.add_argument("mapping_name", nargs='?', type=str, default=None, help="Map
 @pwndbg.commands.OnlyWhenRunning
 def findsyscall(mapping_name=None):
     if mapping_name is None:
-        mapping_name = pwndbg.proc.exe
-    arch = pwndbg.arch.current
+        mapping_name = pwndbg.gdblib.proc.exe
+    arch = pwndbg.gdblib.arch.current
 
     if arch == "x86-64" :
         gdb.execute("search -e -x 0f05 {}".format(mapping_name))
@@ -161,13 +161,13 @@ def findcall(symbol):
 @pwndbg.commands.ArgparsedCommand("Print the GOT table by objdump.")
 @pwndbg.commands.OnlyWithFile
 def objdump_got():
-    cmd = "objdump -R {} {}".format("--demangle" if pwngdb.iscplus() else "", pwndbg.proc.exe)
+    cmd = "objdump -R {} {}".format("--demangle" if pwngdb.iscplus() else "", pwndbg.gdblib.proc.exe)
     print(subprocess.check_output(cmd, shell=True)[:-2].decode("utf8").strip())
 
 @pwndbg.commands.ArgparsedCommand("Print dynamic section.")
 @pwndbg.commands.OnlyWithFile
 def dyn():
-    print(subprocess.check_output("readelf -d {}".format(pwndbg.proc.exe), shell=True).decode("utf8").strip())
+    print(subprocess.check_output("readelf -d {}".format(pwndbg.gdblib.proc.exe), shell=True).decode("utf8").strip())
 
 
 @pwndbg.commands.ArgparsedCommand("Print usefual variables or function in glibc.")
