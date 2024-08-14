@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Pwngdb by angenboy
+Pwngdb by angelboy
 
 https://github.com/scwuaptx/Pwngdb
 """
