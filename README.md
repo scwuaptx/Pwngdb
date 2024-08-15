@@ -5,9 +5,10 @@ GDB for pwn.
 ## Install
 
 ### install
-	cd ~/
-	git clone https://github.com/scwuaptx/Pwngdb.git 
-	cp ~/Pwngdb/.gdbinit ~/
+	mkdir $HOME/Documents/GDB-Plug-in
+	cd $HOME/Documents/GDB-Plug-in
+	git clone https://github.com/apwnln/Pwngdb/tree/apwnln-patch-Pwngdb-pwndbg.git.git 
+	cp $HOME/Documents/GDB-Plug-in/Pwngdb/.gdbinit ~/
 
 If you dont want to use gdb-peda , you can modify the gdbinit to remove it.
 
