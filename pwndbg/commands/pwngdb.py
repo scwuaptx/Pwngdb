@@ -178,7 +178,7 @@ def magic():
         print("\033[34m" + f  + ":" + "\033[33m" +hex(pwngdb.getoff(f))) 
     print("\033[00m========== variables ==========")
     for v in pwngdb.magic_variable:
-        addr = pwndbg.symbol.address(v)
+        addr = pwndbg.gdblib.symbol.address(v)
         if addr is None:
             print("\033[34m" + v + ":" + "\033[33m" + "not found")
         offset = addr - pwngdb.libcbase()
