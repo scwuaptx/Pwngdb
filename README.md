@@ -9,7 +9,7 @@ GDB for pwn.
 	git clone https://github.com/scwuaptx/Pwngdb.git 
 	cp ~/Pwngdb/.gdbinit ~/
 
-If you dont want to use gdb-peda , you can modify the gdbinit to remove it.
+If you don't want to use gdb-peda , you can modify the gdbinit to remove it.
 
 ### pwndbg
 
@@ -25,8 +25,8 @@ If you want to use the feature of heapinfo and tracemalloc , you need to install
 + `ld` : Print the base address of ld
 + `codebase` : Print the base of code segment
 + `heap` : Print the base of heap
-+ `got` : Print the Global Offset Table infomation
-+ `dyn` : Print the Dynamic section infomation
++ `got` : Print the Global Offset Table information
++ `dyn` : Print the Dynamic section information
 + `findcall` : Find some function call 
 + `bcall` : Set the breakpoint at some function call
 + `tls` : Print the thread local storage address
@@ -35,22 +35,22 @@ If you want to use the feature of heapinfo and tracemalloc , you need to install
 + `fmtarg` : Calculate the index of format string
 	+ You need to stop on printf which has vulnerability.
 + `force` : Calculate the nb in the house of force.
-+ `heapinfo` : Print some infomation of heap
++ `heapinfo` : Print some information of heap
 	+ heapinfo (Address of arena)
 	+ default is the arena of current thread
-	+ If tcache is enable, it would show infomation of tcache entry
-+ `heapinfoall` : Print some infomation of heap (all threads)
-+ `arenainfo` : Print some infomation of all arena
-+ `chunkinfo`: Print the infomation of chunk
+	+ If tcache is enable, it would show information of tcache entry
++ `heapinfoall` : Print some information of heap (all threads)
++ `arenainfo` : Print some information of all arena
++ `chunkinfo`: Print the information of chunk
     + chunkinfo (Address of victim)
-+ `chunkptr` : Print the infomation of chunk 
++ `chunkptr` : Print the information of chunk 
 	+ chunkptr (Address of user ptr)
-+ `mergeinfo` : Print the infomation of merge
++ `mergeinfo` : Print the information of merge
 	+ mergeinfo (Address of victim)
-+ `printfastbin` : Print some infomation of fastbin
++ `printfastbin` : Print some information of fastbin
 + `tracemalloc on` : Trace the malloc and free and detect some error .
 	+ You need to run the process first than `tracemalloc on`, it will record all of the malloc and free.
-	+ You can set the `DEBUG` in pwngdb.py , than it will print all of the malloc and free infomation such as the screeshot.
+	+ You can set the `DEBUG` in pwngdb.py , than it will print all of the malloc and free information such as the screeshot.
 + `parseheap` : Parse heap layout
 + `magic` : Print useful variable and function in glibc
 + `fp` : show FILE structure
